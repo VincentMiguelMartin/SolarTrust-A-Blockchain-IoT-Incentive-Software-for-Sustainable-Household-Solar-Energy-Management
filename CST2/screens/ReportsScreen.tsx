@@ -1,3 +1,6 @@
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useState } from "react";
+import { Platform } from "react-native";
 import React from "react";
 import { SafeAreaView, Text, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -6,6 +9,17 @@ import FloatingBackButton from "../components/FloatingBackButton";
 
 export default function ReportsScreen() {
   const navigation = useNavigation<any>();
+
+  const [fromDate, setFromDate] = useState<Date | null>(null);
+  const [toDate, setToDate] = useState<Date | null>(null);
+
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
+
+  const onFromChange = (_: any, selectedDate?: Date) => {
+    setShowFromPicker(Platform.OS === "ios");
+    if (selectedDate) setFromDate(selectedDate);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
