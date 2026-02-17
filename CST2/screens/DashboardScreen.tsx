@@ -68,8 +68,8 @@ export default function DashboardScreen({ navigation }: Props) {
         >
 
           <View style={styles.powerRow}>
-            <Text style={styles.powerText}>Solar Power: 1066 W</Text>
-            <Text style={styles.powerText}>Grid Power: 1519 W</Text>
+            <Text style={styles.powerText}>Solar Power: 0 W</Text>
+            <Text style={styles.powerText}>Grid Power: 0 W</Text>
           </View>
 
         {/* GRAPH PLACEHOLDER */}

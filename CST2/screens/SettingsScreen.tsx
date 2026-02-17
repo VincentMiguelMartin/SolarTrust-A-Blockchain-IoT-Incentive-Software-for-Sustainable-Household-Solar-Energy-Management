@@ -1,33 +1,29 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState } from "react";
 import {
   SafeAreaView,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet
+  StyleSheet,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform
 } from "react-native";
 import FloatingBackButton from "../components/FloatingBackButton";
 import { AuthContext } from "../context/AuthContext";
-
-type EditMode = "none" | "email" | "password";
 
 export default function SettingsScreen() {
 
   const { user, updateAccount } = useContext(AuthContext);
 
-  const [mode, setMode] = useState<EditMode>("none");
+  const [showEmailEdit, setShowEmailEdit] = useState(false);
+  const [showPasswordEdit, setShowPasswordEdit] = useState(false);
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(user?.email || "");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  useEffect(() => {
-    if (user) {
-      setEmail(user.email);
-    }
-  }, [user]);
 
   if (!user) {
     return (
@@ -38,73 +34,98 @@ export default function SettingsScreen() {
     );
   }
 
-  /* ---------- PASSWORD UPDATE ---------- */
-  const handleUpdatePassword = () => {
-
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      alert("Please complete all password fields");
+  const handleUpdateEmail = () => {
+    if (!email || !oldPassword) {
+      alert("Enter email and current password");
       return;
     }
 
-    if (newPassword.length < 4) {
-      alert("Password must be at least 4 characters");
+    const success = updateAccount(email, oldPassword, user.password);
+
+    if (success) {
+      alert("Email updated!");
+      setShowEmailEdit(false);
+      setOldPassword("");
+    } else {
+      alert("Incorrect password");
+    }
+  };
+
+  const handleUpdatePassword = () => {
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      alert("Complete all password fields");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      alert("New passwords do not match");
+      alert("Passwords do not match");
       return;
     }
 
-    const success = updateAccount(email, oldPassword, newPassword);
+    const success = updateAccount(user.email, oldPassword, newPassword);
 
-    if (!success) {
+    if (success) {
+      alert("Password updated!");
+      setShowPasswordEdit(false);
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } else {
       alert("Incorrect current password");
-      return;
     }
-
-    alert("Password updated successfully!");
-    setMode("none");
-    setOldPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-  };
-
-  /* ---------- EMAIL UPDATE ---------- */
-  const handleUpdateEmail = () => {
-    updateAccount(email, user.password, user.password);
-    alert("Email updated!");
-    setMode("none");
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 140 }}
+        >
 
-      <Text style={styles.title}>Account Settings</Text>
+          <Text style={styles.title}>Account Settings</Text>
 
-      {/* PROFILE CARD */}
-      <View style={styles.card}>
+          {/* INFO CARD */}
+          <View style={styles.card}>
+            <Text style={styles.label}>Name</Text>
+            <Text style={styles.value}>{user.name}</Text>
 
-        {/* NAME (DISPLAY ONLY) */}
-        <Text style={styles.label}>Name</Text>
-        <Text style={styles.value}>{user.name}</Text>
+            <Text style={styles.label}>Email</Text>
+            <Text style={styles.value}>{user.email}</Text>
 
-        {/* EMAIL */}
-        <Text style={[styles.label, { marginTop: 20 }]}>Email</Text>
-        <Text style={styles.value}>{user.email}</Text>
+            <Text style={styles.label}>Password</Text>
+            <Text style={styles.value}>••••••••</Text>
+          </View>
 
-        {mode === "none" && (
-          <TouchableOpacity
-            style={styles.smallBtn}
-            onPress={() => setMode("email")}
-          >
-            <Text style={styles.smallBtnText}>Change Email</Text>
-          </TouchableOpacity>
-        )}
+          {/* BUTTONS */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.smallButton}
+              onPress={() => {
+                setShowEmailEdit(!showEmailEdit);
+                setShowPasswordEdit(false);
+              }}
+            >
+              <Text style={styles.smallButtonText}>Change Email</Text>
+            </TouchableOpacity>
 
-        {mode === "email" && (
-          <>
-            <View style={styles.inputBox}>
+            <TouchableOpacity
+              style={styles.smallButton}
+              onPress={() => {
+                setShowPasswordEdit(!showPasswordEdit);
+                setShowEmailEdit(false);
+              }}
+            >
+              <Text style={styles.smallButtonText}>Change Password</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* EMAIL EDIT */}
+          {showEmailEdit && (
+            <View style={styles.editBox}>
               <TextInput
                 placeholder="New Email"
                 placeholderTextColor="#555"
@@ -113,30 +134,7 @@ export default function SettingsScreen() {
                 onChangeText={setEmail}
                 autoCapitalize="none"
               />
-            </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleUpdateEmail}>
-              <Text style={styles.buttonText}>Save Email</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* PASSWORD */}
-        <Text style={[styles.label, { marginTop: 20 }]}>Password</Text>
-        <Text style={styles.value}>••••••••</Text>
-
-        {mode === "none" && (
-          <TouchableOpacity
-            style={styles.smallBtn}
-            onPress={() => setMode("password")}
-          >
-            <Text style={styles.smallBtnText}>Change Password</Text>
-          </TouchableOpacity>
-        )}
-
-        {mode === "password" && (
-          <>
-            <View style={styles.inputBox}>
               <TextInput
                 placeholder="Current Password"
                 placeholderTextColor="#555"
@@ -145,9 +143,25 @@ export default function SettingsScreen() {
                 value={oldPassword}
                 onChangeText={setOldPassword}
               />
-            </View>
 
-            <View style={styles.inputBox}>
+              <TouchableOpacity style={styles.button} onPress={handleUpdateEmail}>
+                <Text style={styles.buttonText}>Update Email</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* PASSWORD EDIT */}
+          {showPasswordEdit && (
+            <View style={styles.editBox}>
+              <TextInput
+                placeholder="Current Password"
+                placeholderTextColor="#555"
+                style={styles.input}
+                secureTextEntry
+                value={oldPassword}
+                onChangeText={setOldPassword}
+              />
+
               <TextInput
                 placeholder="New Password"
                 placeholderTextColor="#555"
@@ -156,9 +170,7 @@ export default function SettingsScreen() {
                 value={newPassword}
                 onChangeText={setNewPassword}
               />
-            </View>
 
-            <View style={styles.inputBox}>
               <TextInput
                 placeholder="Confirm New Password"
                 placeholderTextColor="#555"
@@ -167,19 +179,19 @@ export default function SettingsScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
               />
+
+              <TouchableOpacity style={styles.button} onPress={handleUpdatePassword}>
+                <Text style={styles.buttonText}>Update Password</Text>
+              </TouchableOpacity>
             </View>
+          )}
 
-            <TouchableOpacity style={styles.button} onPress={handleUpdatePassword}>
-              <Text style={styles.buttonText}>Update Password</Text>
-            </TouchableOpacity>
-          </>
-        )}
+        </ScrollView>
 
-      </View>
+        <FloatingBackButton />
 
-      <FloatingBackButton />
-
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -202,60 +214,69 @@ const styles = StyleSheet.create({
     backgroundColor: "#1a1a1a",
     padding: 18,
     borderRadius: 12,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: "#333"
   },
 
   label: {
     color: "#888",
-    fontSize: 14,
-    marginBottom: 6
+    fontSize: 13,
+    marginTop: 12
   },
 
   value: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "600",
-    marginBottom: 5
+    marginTop: 4
   },
 
-  smallBtn: {
-    alignSelf: "flex-start",
-    marginBottom: 10
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 15
   },
 
-  smallBtnText: {
+  smallButton: {
+    borderWidth: 1,
+    borderColor: "#FFE100",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8
+  },
+
+  smallButtonText: {
     color: "#FFE100",
-    fontWeight: "bold"
+    fontWeight: "bold",
+    fontSize: 13
   },
 
-  inputBox: {
-    backgroundColor: "#d9d9d9",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 55,
-    justifyContent: "center",
-    marginTop: 10,
-    marginBottom: 10,
+  editBox: {
+    marginTop: 10
   },
 
   input: {
-    color: "#000",
-    fontSize: 16,
+    backgroundColor: "#d9d9d9",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    height: 55,
+    marginBottom: 12,
+    color: "#000"
   },
 
   button: {
     backgroundColor: "#FFE100",
-    height: 50,
-    borderRadius: 12,
+    height: 55,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 5,
+    marginTop: 5
   },
 
   buttonText: {
     color: "#000",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+    fontSize: 17,
+    fontWeight: "bold"
+  }
 });

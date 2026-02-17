@@ -25,17 +25,17 @@ export default function StatisticsScreen() {
 
         <View style={styles.row}>
           <Text style={styles.label}>Solar Generated</Text>
-          <Text style={styles.value}>3.42 kWh</Text>
+          <Text style={styles.value}>0 kWh</Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.label}>Grid Consumption</Text>
-          <Text style={styles.value}>2.15 kWh</Text>
+          <Text style={styles.value}>0 kWh</Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.label}>Battery Storage</Text>
-          <Text style={styles.value}>1.07 kWh</Text>
+          <Text style={styles.value}>0 kWh</Text>
         </View>
       </View>
 
