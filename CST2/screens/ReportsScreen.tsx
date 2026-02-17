@@ -33,6 +33,8 @@ export default function ReportsScreen() {
 
       {/* FROM DATE */}
       <View style={styles.dateRow}>
+        <Text style={styles.label}>From</Text>
+
         <TouchableOpacity onPress={() => setShowFromPicker(true)}>
           <MaterialIcons name="calendar-month" size={34} color="white" />
         </TouchableOpacity>
@@ -44,6 +46,8 @@ export default function ReportsScreen() {
 
       {/* TO DATE */}
       <View style={styles.dateRow}>
+        <Text style={styles.label}>To</Text>
+
         <TouchableOpacity onPress={() => setShowToPicker(true)}>
           <MaterialIcons name="calendar-month" size={34} color="white" />
         </TouchableOpacity>
@@ -97,6 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 35,
+    justifyContent: "center",
   },
 
   dateBox: {
@@ -113,5 +118,13 @@ const styles = StyleSheet.create({
     color: "#000",
     fontSize: 16,
     fontWeight: "600",
+  },
+
+  label: {
+  color: "#FFE100",
+  fontSize: 16,
+  fontWeight: "bold",
+  width: 55,
+  marginRight: 8,
   },
 });
