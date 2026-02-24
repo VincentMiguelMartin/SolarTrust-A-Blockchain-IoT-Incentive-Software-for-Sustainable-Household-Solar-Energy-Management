@@ -1,4 +1,9 @@
 require("dotenv").config();
+try {
+  require("./cron/tanekoCron");
+} catch (error) {
+  console.warn("[cron] Skipping Taneko cron job:", error.message);
+}
 
 const express = require("express");
 const cors = require("cors");
@@ -97,6 +102,59 @@ app.post("/readings", async (req, res) => {
     res.json({ reading: data });
   } catch (e) {
     res.status(500).json({ error: String(e) });
+  }
+});
+
+// SYNC LIVE DATA FROM TANEKO
+app.get("/energy/sync/:plantId", async (req, res) => {
+  try {
+    const { plantId } = req.params;
+    if (!plantId) {
+      return res.status(400).json({ error: "plantId is required" });
+    }
+
+    const base = process.env.TANEKO_BASE_URL || "https://api.taneko.net/plant";
+    const baseUrl = `${base}/${encodeURIComponent(plantId)}/live`;
+    const search = new URLSearchParams();
+    if (process.env.TANEKO_API_KEY) {
+      search.set("api_key", process.env.TANEKO_API_KEY);
+    }
+
+    const response = await fetch(
+      search.size ? `${baseUrl}?${search.toString()}` : baseUrl
+    );
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: `Taneko request failed with status ${response.status}`,
+      });
+    }
+
+    const payload = await response.json();
+    const values = Array.isArray(payload?.values) ? payload.values : [];
+    if (!values.length) {
+      return res.status(502).json({ error: "No values returned from Taneko" });
+    }
+
+    const latest = [...values].sort(
+      (a, b) => Date.parse(b.ts || "") - Date.parse(a.ts || "")
+    )[0];
+
+    const reading = {
+      ts: latest.ts ?? null,
+      solarWatts: Number(latest.sap ?? 0),
+      gridWatts: Number(latest.iap ?? 0),
+      exportWatts: Number(latest.eap ?? 0),
+      powerFactor: Number(latest.pf ?? 0),
+    };
+
+    return res.json({
+      plantId,
+      unit: payload?.unit ?? null,
+      reading,
+      latest,
+    });
+  } catch (e) {
+    return res.status(500).json({ error: String(e) });
   }
 });
 

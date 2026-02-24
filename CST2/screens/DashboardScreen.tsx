@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet
 } from "react-native";
-
+import { syncEnergy } from "../services/apiService.js";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
@@ -15,6 +15,47 @@ import { RootStackParamList } from "../App";
 type Props = NativeStackScreenProps<RootStackParamList, "Dashboard">;
 
 export default function DashboardScreen({ navigation }: Props) {
+  const [solarWatts, setSolarWatts] = useState(0);
+  const [lastUpdate, setLastUpdate] = useState("");
+  const [error, setError] = useState("");
+  const [debugUrl, setDebugUrl] = useState("");
+  const [debugState, setDebugState] = useState("idle");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadEnergy = async () => {
+      try {
+        const base =
+          process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.218.168.107:3000";
+        setDebugUrl(`${base}/energy/sync/TTC60011`);
+        setDebugState("loading");
+
+        const data = await syncEnergy("TTC60011"); // replace with your real plantId
+        if (!mounted) return;
+
+        const solar = Number(data?.reading?.solarWatts ?? data?.latest?.sap ?? 0);
+        const ts = data?.reading?.ts ?? data?.latest?.ts ?? "";
+
+        setSolarWatts(Math.round(solar));
+        setLastUpdate(ts);
+        setError("");
+        setDebugState("ok");
+      } catch (e) {
+        if (!mounted) return;
+        setError(e instanceof Error ? e.message : "Failed to load energy");
+        setDebugState("failed");
+      }
+    };
+
+    loadEnergy();
+    const timer = setInterval(loadEnergy, 10000);
+
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -68,13 +109,17 @@ export default function DashboardScreen({ navigation }: Props) {
         >
 
           <View style={styles.powerRow}>
-            <Text style={styles.powerText}>Solar Power: 0 W</Text>
-            <Text style={styles.powerText}>Grid Power: 0 W</Text>
+            <Text style={styles.powerText}>Solar Power: {solarWatts} W</Text>
           </View>
 
         {/* GRAPH PLACEHOLDER */}
         <View style={styles.graphBox} />
       </TouchableOpacity>
+
+      {lastUpdate ? <Text style={styles.meta}>Last update: {lastUpdate}</Text> : null}
+      {error ? <Text style={styles.error}>IoT error: {error}</Text> : null}
+      <Text style={styles.meta}>API: {debugUrl || "not set"}</Text>
+      <Text style={styles.meta}>State: {debugState}</Text>
 
       {/* DETAILS TEXT */}
       <Text style={styles.details}>Click to view full details!</Text>
@@ -146,6 +191,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 18,
     marginBottom: 25
+  },
+
+  meta: {
+    color: "#cccccc",
+    textAlign: "center",
+    marginTop: 10,
+    fontSize: 12
+  },
+
+  error: {
+    color: "#ff7070",
+    textAlign: "center",
+    marginTop: 10,
+    fontSize: 12
   },
 
 });
