@@ -27,7 +27,7 @@ export default function DashboardScreen({ navigation }: Props) {
     const loadEnergy = async () => {
       try {
         const base =
-          process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.218.168.107:3000";
+         process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.218.168.107:3000"; 
         setDebugUrl(`${base}/energy/sync/TTC60011`);
         setDebugState("loading");
 
