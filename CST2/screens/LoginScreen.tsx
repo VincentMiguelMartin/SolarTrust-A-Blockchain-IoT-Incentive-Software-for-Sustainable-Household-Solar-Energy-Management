@@ -1,4 +1,5 @@
 import React, { useState, useContext } from "react";
+import { supabase } from "../lib/supabase";
 
 import {
   SafeAreaView,
@@ -17,39 +18,26 @@ import { AuthContext } from "../context/AuthContext";
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
 export default function LoginScreen({ navigation }: Props) {
-  const { login } = useContext(AuthContext);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
 
-    // empty both
-    if (!email && !password) {
-      alert("Please enter Email and Password");
-      return;
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password.trim(),
+    });
 
-    // empty email
-    if (!email) {
-      alert("Please enter Email");
-      return;
-    }
-
-    // empty password
-    if (!password) {
-      alert("Please enter Password");
-      return;
-    }
-
-    // check account
-    const success = login(email.trim(), password.trim());
-
-    if (success) {
-      navigation.replace("Dashboard");
-    } else {
+    if (error) {
       alert("This account does not exist or Email/Password is incorrect");
+      return;
+    }
+
+    if (data.user) {
+      console.log("Logged in:", data.user.email);
+      navigation.replace("Dashboard");
     }
   };
 

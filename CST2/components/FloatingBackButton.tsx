@@ -12,7 +12,7 @@ export default function FloatingBackButton() {
       onPress={() => navigation.goBack()}
       activeOpacity={0.7}
     >
-      <MaterialIcons name="arrow-back-ios-new" size={38} color="#FFE100" />
+      <MaterialIcons name="arrow-back-ios-new" size={24} color="#FFE100" />
     </TouchableOpacity>
   );
 }
@@ -20,10 +20,8 @@ export default function FloatingBackButton() {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 35,
+    bottom: 25,        // slightly lower
     alignSelf: "center",
-
-    /* NO circle anymore */
-    padding: 10,
+    padding: 10,        // smaller touch area
   },
 });

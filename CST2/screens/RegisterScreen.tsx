@@ -1,4 +1,5 @@
 import React, { useState, useContext } from "react";
+import { supabase } from "../lib/supabase";
 import {
   SafeAreaView,
   View,
@@ -22,7 +23,7 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
 
     // empty fields
     if (!name || !email || !password || !confirm) {
@@ -36,12 +37,32 @@ export default function RegisterScreen() {
       return;
     }
 
-    // create account in memory
-    register(name.trim(), email.trim(), password.trim());
+    // CREATE AUTH ACCOUNT (Supabase)
+    const { data, error } = await supabase.auth.signUp({
 
-    alert("Account successfully created!");
-    navigation.goBack(); // back to login
-  };
+    email: email.trim(),
+    password: password.trim(),
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  // CREATE PROFILE RECORD (your database table)
+  if (data.user) {
+    await supabase.from("profiles").insert([
+      {
+        id: data.user.id,
+        full_name: name.trim(),
+        email: email.trim(),
+      },
+    ]);
+  }
+
+  alert("Account successfully created!");
+  navigation.goBack();
+};
 
   return (
     <SafeAreaView style={styles.container}>

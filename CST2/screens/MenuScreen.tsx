@@ -69,7 +69,7 @@ export default function MenuScreen({ navigation }: Props) {
       {/* FLOATING BOTTOM BACK ARROW */}
       <View style={styles.bottomNav}>
         <TouchableOpacity
-          onPress={() => navigation.navigate("Dashboard")}
+          onPress={() => navigation.goBack()}
           style={{ padding: 15 }}
         >
           <MaterialIcons name="arrow-back-ios-new" size={32} color="#FFE100" />

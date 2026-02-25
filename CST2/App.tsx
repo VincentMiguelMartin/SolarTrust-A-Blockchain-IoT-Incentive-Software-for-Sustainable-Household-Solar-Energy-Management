@@ -2,6 +2,8 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+import GameScreen from "./screens/GameScreen";
+import RewardScreen from "./screens/RewardScreen";
 import StoreScreen from "./screens/StoreScreen";
 import NotificationsScreen from "./screens/NotificationsScreen";
 import LoginScreen from "./screens/LoginScreen";
@@ -29,6 +31,8 @@ export type RootStackParamList = {
   Notifications: undefined;
   Wallet: undefined;
   Statistics: undefined;
+  Game: undefined;
+  Reward: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -37,7 +41,7 @@ export default function App() {
 
   useEffect(() => {
     console.log("[App] Attempting to connect to server...");
-    fetch('http://10.218.168.107:3000/test')
+    fetch('http://192.168.1.39:3000/test')
       .then(res => {
         console.log("[App] ✓ Response received from server, status:", res.status);
         return res.json();
@@ -50,7 +54,7 @@ export default function App() {
       .catch(error => {
         console.error("[App] ✗ Connection FAILED:", error.message);
         console.error("[App] Make sure:");
-        console.error("  - Server is running on 10.218.168.107:3000");
+        console.error("  - Server is running on 192.168.1.39:3000");
         console.error("  - Firewall allows port 3000");
         console.error("  - IP address is correct");
       });
@@ -66,6 +70,8 @@ export default function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <Stack.Screen name="Game" component={GameScreen} />
+          <Stack.Screen name="Reward" component={RewardScreen} />
           <Stack.Screen name="Menu" component={MenuScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="Reports" component={ReportsScreen} />
