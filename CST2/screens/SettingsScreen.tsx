@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -11,19 +11,36 @@ import {
   Platform
 } from "react-native";
 import FloatingBackButton from "../components/FloatingBackButton";
-import { AuthContext } from "../context/AuthContext";
+import { supabase } from "../lib/supabase";
 
 export default function SettingsScreen() {
-
-  const { user, updateAccount } = useContext(AuthContext);
+  const [user, setUser] = useState<any>(null);
 
   const [showEmailEdit, setShowEmailEdit] = useState(false);
   const [showPasswordEdit, setShowPasswordEdit] = useState(false);
 
-  const [email, setEmail] = useState(user?.email || "");
+  const [email, setEmail] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // 🔥 Get Logged In User
+useEffect(() => {
+  const checkSession = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log("SESSION:", sessionData.session);
+
+    const { data: userData } = await supabase.auth.getUser();
+    console.log("USER:", userData.user);
+
+    if (userData.user) {
+      setUser(userData.user);
+      setEmail(userData.user.email ?? "");
+    }
+  };
+
+  checkSession();
+}, []);
 
   if (!user) {
     return (
@@ -34,24 +51,27 @@ export default function SettingsScreen() {
     );
   }
 
-  const handleUpdateEmail = () => {
-    if (!email || !oldPassword) {
-      alert("Enter email and current password");
+  // 🔥 Update Email
+  const handleUpdateEmail = async () => {
+    if (!email) {
+      alert("Enter a valid email");
       return;
     }
 
-    const success = updateAccount(email, oldPassword, user.password);
+    const { error } = await supabase.auth.updateUser({
+      email: email,
+    });
 
-    if (success) {
-      alert("Email updated!");
-      setShowEmailEdit(false);
-      setOldPassword("");
+    if (error) {
+      alert(error.message);
     } else {
-      alert("Incorrect password");
+      alert("Email update request sent. Check your email to confirm.");
+      setShowEmailEdit(false);
     }
   };
 
-  const handleUpdatePassword = () => {
+  // 🔥 Update Password (With Current Password Verification)
+  const handleUpdatePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
       alert("Complete all password fields");
       return;
@@ -62,16 +82,30 @@ export default function SettingsScreen() {
       return;
     }
 
-    const success = updateAccount(user.email, oldPassword, newPassword);
+    // Step 1: Verify current password
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user.email!,
+      password: oldPassword,
+    });
 
-    if (success) {
-      alert("Password updated!");
+    if (signInError) {
+      alert("Incorrect current password");
+      return;
+    }
+
+    // Step 2: Update password
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (updateError) {
+      alert(updateError.message);
+    } else {
+      alert("Password updated successfully!");
       setShowPasswordEdit(false);
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } else {
-      alert("Incorrect current password");
     }
   };
 
@@ -85,22 +119,22 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 140 }}
         >
-
           <Text style={styles.title}>Account Settings</Text>
 
           {/* INFO CARD */}
           <View style={styles.card}>
             <Text style={styles.label}>Name</Text>
-            <Text style={styles.value}>{user.name}</Text>
+            <Text style={styles.value}>
+              {user.user_metadata?.name || "No name set"}
+            </Text>
 
             <Text style={styles.label}>Email</Text>
-            <Text style={styles.value}>{user.email}</Text>
-
-            <Text style={styles.label}>Password</Text>
-            <Text style={styles.value}>••••••••</Text>
+            <Text style={styles.value}>
+              {user.email}
+            </Text>
           </View>
 
-          {/* BUTTONS */}
+          {/* ACTION BUTTONS */}
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.smallButton}
@@ -135,16 +169,10 @@ export default function SettingsScreen() {
                 autoCapitalize="none"
               />
 
-              <TextInput
-                placeholder="Current Password"
-                placeholderTextColor="#555"
-                style={styles.input}
-                secureTextEntry
-                value={oldPassword}
-                onChangeText={setOldPassword}
-              />
-
-              <TouchableOpacity style={styles.button} onPress={handleUpdateEmail}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleUpdateEmail}
+              >
                 <Text style={styles.buttonText}>Update Email</Text>
               </TouchableOpacity>
             </View>
@@ -180,16 +208,17 @@ export default function SettingsScreen() {
                 onChangeText={setConfirmPassword}
               />
 
-              <TouchableOpacity style={styles.button} onPress={handleUpdatePassword}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleUpdatePassword}
+              >
                 <Text style={styles.buttonText}>Update Password</Text>
               </TouchableOpacity>
             </View>
           )}
-
         </ScrollView>
 
         <FloatingBackButton />
-
       </SafeAreaView>
     </KeyboardAvoidingView>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import {
   SafeAreaView,
@@ -10,11 +10,9 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { AuthContext } from "../context/AuthContext";
 
 export default function RegisterScreen() {
   const navigation = useNavigation();
-  const { register } = useContext(AuthContext);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,48 +23,55 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
 
-    // empty fields
     if (!name || !email || !password || !confirm) {
       alert("Please fill up all fields");
       return;
     }
 
-    // password mismatch
     if (password !== confirm) {
       alert("Passwords do not match");
       return;
     }
 
-    // CREATE AUTH ACCOUNT (Supabase)
+    // 🔥 CREATE AUTH ACCOUNT (with name in metadata)
     const { data, error } = await supabase.auth.signUp({
-
-    email: email.trim(),
-    password: password.trim(),
-  });
-
-  if (error) {
-    alert(error.message);
-    return;
-  }
-
-  // CREATE PROFILE RECORD (your database table)
-  if (data.user) {
-    await supabase.from("profiles").insert([
-      {
-        id: data.user.id,
-        full_name: name.trim(),
-        email: email.trim(),
+      email: email.trim(),
+      password: password.trim(),
+      options: {
+        data: {
+          name: name.trim(),   // ✅ SAVE NAME HERE
+        },
       },
-    ]);
-  }
+    });
 
-  alert("Account successfully created!");
-  navigation.goBack();
-};
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    // 🔥 CREATE PROFILE RECORD (optional but recommended)
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert([
+          {
+            id: data.user.id,
+            full_name: name.trim(),
+            email: email.trim(),
+          },
+        ]);
+
+      if (profileError) {
+        console.log("Profile insert error:", profileError.message);
+      }
+    }
+
+    alert("Account successfully created!");
+    navigation.goBack();
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-
       <Text style={styles.title}>Create account</Text>
 
       {/* NAME */}
@@ -98,7 +103,6 @@ export default function RegisterScreen() {
       {/* PASSWORD */}
       <View style={styles.inputBox}>
         <MaterialIcons name="lock" size={24} color="black" />
-
         <TextInput
           placeholder="Password"
           placeholderTextColor="#555"
@@ -107,7 +111,6 @@ export default function RegisterScreen() {
           value={password}
           onChangeText={setPassword}
         />
-
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <MaterialIcons
             name={showPassword ? "visibility-off" : "visibility"}
@@ -120,7 +123,6 @@ export default function RegisterScreen() {
       {/* CONFIRM PASSWORD */}
       <View style={styles.inputBox}>
         <MaterialIcons name="lock" size={24} color="black" />
-
         <TextInput
           placeholder="Confirm password"
           placeholderTextColor="#555"
@@ -129,7 +131,6 @@ export default function RegisterScreen() {
           value={confirm}
           onChangeText={setConfirm}
         />
-
         <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
           <MaterialIcons
             name={showConfirm ? "visibility-off" : "visibility"}
@@ -148,7 +149,6 @@ export default function RegisterScreen() {
       <TouchableOpacity onPress={() => navigation.goBack()}>
         <Text style={styles.back}>BACK TO LOGIN</Text>
       </TouchableOpacity>
-
     </SafeAreaView>
   );
 }
