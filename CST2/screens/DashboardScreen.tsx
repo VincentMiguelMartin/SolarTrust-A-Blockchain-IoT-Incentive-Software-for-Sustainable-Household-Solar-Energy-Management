@@ -71,14 +71,6 @@ export default function DashboardScreen({ navigation }: Props) {
         {/* RIGHT SIDE ICONS */}
         <View style={styles.topRight}>
 
-          {/* WALLET */}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.push("Wallet")}
-          >
-            <Ionicons name="wallet-outline" size={24} color="white" />
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => navigation.navigate("Game")}

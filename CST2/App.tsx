@@ -13,7 +13,6 @@ import MenuScreen from "./screens/MenuScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import ReportsScreen from "./screens/ReportsScreen";
 import AboutScreen from "./screens/AboutScreen";
-import WalletScreen from "./screens/WalletScreen";
 import StatisticsScreen from "./screens/StatisticsScreen";
 import { AuthProvider } from "./context/AuthContext";
 import { useEffect } from "react";
@@ -29,7 +28,6 @@ export type RootStackParamList = {
   About: undefined;
   Store: undefined;
   Notifications: undefined;
-  Wallet: undefined;
   Statistics: undefined;
   Game: undefined;
   Reward: undefined;
@@ -79,7 +77,6 @@ export default function App() {
           <Stack.Screen name="About" component={AboutScreen} />
           <Stack.Screen name="Store" component={StoreScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
-          <Stack.Screen name="Wallet" component={WalletScreen} />
           <Stack.Screen name="Statistics" component={StatisticsScreen} />
         </Stack.Navigator>
       </AuthProvider>
