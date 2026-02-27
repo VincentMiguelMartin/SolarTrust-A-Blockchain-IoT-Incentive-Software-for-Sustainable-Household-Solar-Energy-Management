@@ -38,9 +38,6 @@ export default function DashboardScreen({ navigation }: Props) {
 
         const data = await syncEnergy("TTC60011");
 
-        console.log("FULL API RESPONSE:", JSON.stringify(data, null, 2));
-        console.log("Solar from API:", data?.reading?.solarWatts);
-
         const solarRaw =
           data?.reading?.solarWatts;
         
