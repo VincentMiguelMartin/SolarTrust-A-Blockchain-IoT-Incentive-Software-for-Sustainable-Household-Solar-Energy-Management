@@ -10,6 +10,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
+import FloatingBackButton from "../components/FloatingBackButton";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Menu">;
 
@@ -66,16 +67,7 @@ export default function MenuScreen({ navigation }: Props) {
 
       </View>
 
-      {/* FLOATING BOTTOM BACK ARROW */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ padding: 15 }}
-        >
-          <MaterialIcons name="arrow-back-ios-new" size={32} color="#FFE100" />
-        </TouchableOpacity>
-      </View>
-
+      <FloatingBackButton />
     </SafeAreaView>
   );
 }
@@ -83,7 +75,7 @@ export default function MenuScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ebeaea",
     paddingHorizontal: 25,
     paddingTop: 60
   },
@@ -97,7 +89,7 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 28,
     fontWeight: "bold"
   },
@@ -119,7 +111,6 @@ const styles = StyleSheet.create({
 
   logout: {
     marginTop: 30,
-    borderColor: "#FFE100"
   },
 
   text: {
@@ -128,14 +119,5 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
 
-  /* BOTTOM FLOATING ARROW */
-  bottomNav: {
-    position: "absolute",
-    bottom: 35,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#FFE100"
-  }
+
 });

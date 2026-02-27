@@ -227,13 +227,13 @@ useEffect(() => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ebeaea",
     padding: 25,
     paddingTop: 60
   },
 
   title: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 30,
     fontWeight: "bold",
     marginBottom: 30
@@ -269,14 +269,15 @@ const styles = StyleSheet.create({
 
   smallButton: {
     borderWidth: 1,
-    borderColor: "#FFE100",
+    borderColor: "#32702f",
+    backgroundColor: "#32702f",
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8
   },
 
   smallButtonText: {
-    color: "#FFE100",
+    color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 13
   },

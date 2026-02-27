@@ -48,7 +48,7 @@ export default function StatisticsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ebeaea",
     paddingHorizontal: 25,
     paddingTop: 60,
   },
@@ -61,27 +61,27 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 28,
     fontWeight: "bold",
   },
 
   graphCard: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#3d3d3d",
     borderRadius: 14,
     padding: 15,
     marginBottom: 25,
   },
 
   sectionTitle: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
   },
 
     graphTitle: {
-    color: "#000",
+    color: "#FFF",
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   },
 
   value: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 16,
     fontWeight: "bold",
   },

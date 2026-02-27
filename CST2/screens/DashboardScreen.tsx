@@ -65,7 +65,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
         {/* MENU BUTTON */}
         <TouchableOpacity onPress={() => navigation.navigate("Menu")}>
-          <MaterialIcons name="menu" size={26} color="white" />
+          <MaterialIcons name="menu" size={26} color="black" />
         </TouchableOpacity>
 
         {/* RIGHT SIDE ICONS */}
@@ -75,7 +75,7 @@ export default function DashboardScreen({ navigation }: Props) {
             style={styles.iconButton}
             onPress={() => navigation.navigate("Game")}
           >
-            <Ionicons name="game-controller-outline" size={24} color="white" />
+            <Ionicons name="game-controller-outline" size={24} color="black" />
           </TouchableOpacity>
 
           {/* STORE (CART) */}
@@ -83,7 +83,7 @@ export default function DashboardScreen({ navigation }: Props) {
             style={styles.iconButton}
             onPress={() => navigation.navigate("Store")}
           >
-            <Ionicons name="cart-outline" size={24} color="white" />
+            <Ionicons name="cart-outline" size={24} color="black" />
           </TouchableOpacity>
 
           {/* NOTIFICATIONS */}
@@ -91,7 +91,7 @@ export default function DashboardScreen({ navigation }: Props) {
             style={styles.iconButton}
             onPress={() => navigation.navigate("Notifications")}
           >
-            <Ionicons name="notifications-outline" size={24} color="white" />
+            <Ionicons name="notifications-outline" size={24} color="black" />
           </TouchableOpacity>
 
         </View>
@@ -130,7 +130,7 @@ export default function DashboardScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ebeaea",
     paddingHorizontal: 20,
     paddingTop: 50
   },
@@ -153,14 +153,14 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 32,
     fontWeight: "bold",
     marginBottom: 20
   },
 
   card: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#3d3d3d",
     borderRadius: 14,
     padding: 15,
     elevation: 4,
@@ -173,27 +173,27 @@ const styles = StyleSheet.create({
   },
 
   powerText: {
-    color: "#000",
+    color: "#FFF",
     fontWeight: "600"
   },
 
   graphBox: {
     height: 160,
-    backgroundColor: "#ddd",
+    backgroundColor: "#858585",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#bbb"
   },
 
   details: {
-    color: "#ffffff",
+    color: "#000000",
     textAlign: "center",
     marginTop: 18,
     marginBottom: 25
   },
 
   meta: {
-    color: "#cccccc",
+    color: "#000000",
     textAlign: "center",
     marginTop: 10,
     fontSize: 12

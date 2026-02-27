@@ -21,19 +21,19 @@ export default function AboutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ffffff",
     padding: 30,
     justifyContent: "center",
   },
   title: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 26,
     fontWeight: "bold",
     marginBottom: 15,
     textAlign: "center",
   },
   text: {
-    color: "#fff",
+    color: "#000",
     fontSize: 16,
     textAlign: "center",
     lineHeight: 22,

@@ -12,7 +12,7 @@ export default function FloatingBackButton() {
       onPress={() => navigation.goBack()}
       activeOpacity={0.7}
     >
-      <MaterialIcons name="arrow-back-ios-new" size={24} color="#FFE100" />
+      <MaterialIcons name="arrow-back-ios-new" size={24} color="#32702f" />
     </TouchableOpacity>
   );
 }

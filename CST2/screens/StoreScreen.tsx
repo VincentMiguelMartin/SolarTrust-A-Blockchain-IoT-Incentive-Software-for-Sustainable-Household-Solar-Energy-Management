@@ -28,7 +28,7 @@ export default function StoreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ebeaea",
     paddingHorizontal: 25,
     paddingTop: 60,
   },
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 28,
     fontWeight: "bold",
   },
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
 
   placeholder: {
-    color: "#888",
+    color: "#000",
     alignItems: "center",
     fontSize: 16,
   },

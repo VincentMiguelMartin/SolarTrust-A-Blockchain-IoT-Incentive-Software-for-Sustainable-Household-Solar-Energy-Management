@@ -156,13 +156,13 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ebeaea",
     paddingHorizontal: 25,
     paddingTop: 60
   },
 
   title: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 30,
     fontWeight: "bold",
     marginBottom: 30
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
 
   registerBtn: {
-    backgroundColor: "#FFE100",
+    backgroundColor: "#32702f",
     height: 55,
     borderRadius: 14,
     justifyContent: "center",
@@ -197,11 +197,11 @@ const styles = StyleSheet.create({
   registerText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#000"
+    color: "#FFF"
   },
 
   back: {
-    color: "#FFE100",
+    color: "#32702f",
     textAlign: "center",
     marginTop: 25,
     fontWeight: "bold",

@@ -99,13 +99,13 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ffffff",
     paddingHorizontal: 25,
     paddingTop: 60
   },
 
   welcome: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 32,
     fontWeight: "bold",
     marginBottom: 30
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
 
   loginBtn: {
-    backgroundColor: "#FFE100",
+    backgroundColor: "#32702f",
     height: 55,
     borderRadius: 14,
     justifyContent: "center",
@@ -140,11 +140,11 @@ const styles = StyleSheet.create({
   loginText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#000"
+    color: "#FFFFFF"
   },
 
   createAccount: {
-    color: "#FFE100",
+    color: "#000",
     textAlign: "center",
     marginTop: 25,
     fontWeight: "bold",

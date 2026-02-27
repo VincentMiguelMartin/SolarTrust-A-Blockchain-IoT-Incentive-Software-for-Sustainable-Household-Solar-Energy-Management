@@ -14,7 +14,7 @@ export default function GameScreen({ navigation }: any) {
          onPress={() => navigation.push("Menu")}
          activeOpacity={0.6}
         >
-         <MaterialIcons name="menu" size={28} color="#fff" />
+         <MaterialIcons name="menu" size={28} color="#000" />
         </TouchableOpacity>
 
          <TouchableOpacity
@@ -22,7 +22,7 @@ export default function GameScreen({ navigation }: any) {
           onPress={() => navigation.push("Notifications")}
           activeOpacity={0.6}
         >
-          <MaterialIcons name="notifications-none" size={28} color="#fff" />
+          <MaterialIcons name="notifications-none" size={28} color="#000" />
         </TouchableOpacity>
       </View>
 
@@ -43,7 +43,7 @@ export default function GameScreen({ navigation }: any) {
          style={styles.homeButton}
          onPress={() => navigation.replace("Dashboard")}
       >
-        <Text style={styles.doneText}>Home</Text>
+        <Text style={styles.homeText}>Home</Text>
       </TouchableOpacity>
 
       </View>
@@ -57,7 +57,7 @@ export default function GameScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#ebeaea",
     paddingHorizontal: 20,
     paddingTop: 50,
   },
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
 
     title: {
-    color: "#FFE100",
+    color: "#32702f",
     fontSize: 26,
     fontWeight: "bold",
     textAlign: "center",
@@ -90,13 +90,13 @@ const styles = StyleSheet.create({
   },
 
   subtitle: {
-    color: "#ccc",
+    color: "#000",
     textAlign: "center",
   },
 
     homeButton: {
     alignSelf: "center",
-    backgroundColor: "#FFE100",
+    backgroundColor: "#32702f",
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 10,
@@ -104,9 +104,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
-  doneText: {
+  homeText: {
     fontWeight: "bold",
     fontSize: 16,
-    color: "#000",
+    color: "#FFF",
   },
 });
