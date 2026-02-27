@@ -49,7 +49,7 @@ export default function DashboardScreen({ navigation }: Props) {
     };
 
     loadEnergy();
-    const timer = setInterval(loadEnergy, 60000); // ✅ store it
+    const timer = setInterval(loadEnergy, 300000); // ✅ store it
 
     return () => {
       mounted = false;
