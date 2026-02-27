@@ -10,12 +10,17 @@ import { syncEnergy } from "../services/apiService.js";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
+import { LineChart } from "react-native-chart-kit";
+import { Dimensions } from "react-native";
 
 /* THIS connects the screen to the real navigator */
 type Props = NativeStackScreenProps<RootStackParamList, "Dashboard">;
 
 export default function DashboardScreen({ navigation }: Props) {
+  const screenWidth = Dimensions.get("window").width;
+
   const [solarWatts, setSolarWatts] = useState(0);
+  const [powerHistory, setPowerHistory] = useState<number[]>([]);
   const [lastUpdate, setLastUpdate] = useState("");
   const [error, setError] = useState("");
   const [debugUrl, setDebugUrl] = useState("");
@@ -31,25 +36,48 @@ export default function DashboardScreen({ navigation }: Props) {
         setDebugUrl(`${base}/energy/sync/TTC60011`);
         setDebugState("loading");
 
-        const data = await syncEnergy("TTC60011"); // replace with your real plantId
-        if (!mounted) return;
+        const data = await syncEnergy("TTC60011");
 
-        const solar = Number(data?.reading?.solarWatts ?? data?.latest?.sap ?? 0);
-        const ts = data?.reading?.ts ?? data?.latest?.ts ?? "";
+        console.log("FULL API RESPONSE:", JSON.stringify(data, null, 2));
+        console.log("Solar from API:", data?.reading?.solarWatts);
 
-        setSolarWatts(Math.round(solar));
+        const solarRaw =
+          data?.reading?.solarWatts;
+        
+        const ts =
+          data?.reading?.ts ??
+          data?.latest?.ts ??
+        "";
+
+        if (typeof solarRaw === "number" && !isNaN(solarRaw)) {
+          const rounded = Math.round(solarRaw);
+
+        console.log("⚡ Solar value:", rounded);
+
+        setSolarWatts(rounded);
         setLastUpdate(ts);
         setError("");
         setDebugState("ok");
-      } catch (e) {
-        if (!mounted) return;
+
+        // 🔥 Update chart history (keep last 20 points)
+        setPowerHistory(prev => {
+          const updated = [...prev, rounded];
+          if (updated.length > 20) updated.shift();
+            return updated;
+        });
+
+      }
+
+    } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load energy");
         setDebugState("failed");
-      }
-    };
+    }
+  };
 
     loadEnergy();
-    const timer = setInterval(loadEnergy, 300000); // ✅ store it
+
+    // ✅ 5 minutes interval (300,000 ms)
+    const timer = setInterval(loadEnergy, 300000);
 
     return () => {
       mounted = false;
@@ -62,15 +90,11 @@ export default function DashboardScreen({ navigation }: Props) {
 
       {/* TOP BAR */}
       <View style={styles.topBar}>
-
-        {/* MENU BUTTON */}
         <TouchableOpacity onPress={() => navigation.navigate("Menu")}>
           <MaterialIcons name="menu" size={26} color="black" />
         </TouchableOpacity>
 
-        {/* RIGHT SIDE ICONS */}
         <View style={styles.topRight}>
-
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => navigation.navigate("Game")}
@@ -78,7 +102,6 @@ export default function DashboardScreen({ navigation }: Props) {
             <Ionicons name="game-controller-outline" size={24} color="black" />
           </TouchableOpacity>
 
-          {/* STORE (CART) */}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => navigation.navigate("Store")}
@@ -86,14 +109,12 @@ export default function DashboardScreen({ navigation }: Props) {
             <Ionicons name="cart-outline" size={24} color="black" />
           </TouchableOpacity>
 
-          {/* NOTIFICATIONS */}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => navigation.navigate("Notifications")}
           >
             <Ionicons name="notifications-outline" size={24} color="black" />
           </TouchableOpacity>
-
         </View>
       </View>
 
@@ -103,25 +124,66 @@ export default function DashboardScreen({ navigation }: Props) {
       {/* CARD */}
       <TouchableOpacity
         style={styles.card}
-          activeOpacity={0.85}
-          onPress={() => navigation.push("Statistics")}
-        >
+        activeOpacity={0.85}
+        onPress={() => navigation.push("Statistics")}
+      >
 
-          <View style={styles.powerRow}>
-            <Text style={styles.powerText}>Solar Power: {solarWatts} W</Text>
-          </View>
+        <View style={styles.powerRow}>
+          <Text style={styles.powerText}>
+            Solar Power: {solarWatts} W
+          </Text>
+        </View>
 
-        {/* GRAPH PLACEHOLDER */}
-        <View style={styles.graphBox} />
+        {/* 🔥 LIVE LINE CHART */}
+        <View style={styles.chartContainer}>
+        <LineChart
+          data={{
+            labels: powerHistory.map((_, i) => i.toString()),
+            datasets: [
+              {
+                data: powerHistory.length ? powerHistory : [0],
+              },
+            ],
+          }}
+          width={screenWidth - 90}
+          height={160}
+          yAxisSuffix="W"
+          chartConfig={{
+            backgroundColor: "#ffffff",
+            backgroundGradientFrom: "#ffffff",
+            backgroundGradientTo: "#ffffff",
+            decimalPlaces: 0,
+            color: (opacity = 1) => `rgba(50,112,47, ${opacity})`,
+            labelColor: () => "#000",
+            propsForDots: {
+              r: "4",
+              strokeWidth: "2",
+              stroke: "#32702f",
+            },
+          }}
+          bezier
+          style={{
+            borderRadius: 10,
+          }}
+        />
+      </View>
+
       </TouchableOpacity>
 
-      {lastUpdate ? <Text style={styles.meta}>Last update: {lastUpdate}</Text> : null}
-      {error ? <Text style={styles.error}>IoT error: {error}</Text> : null}
+      {lastUpdate ? (
+        <Text style={styles.meta}>Last update: {lastUpdate}</Text>
+      ) : null}
+
+      {error ? (
+        <Text style={styles.error}>IoT error: {error}</Text>
+      ) : null}
+
       <Text style={styles.meta}>API: {debugUrl || "not set"}</Text>
       <Text style={styles.meta}>State: {debugState}</Text>
 
-      {/* DETAILS TEXT */}
-      <Text style={styles.details}>Click the Graph to view full details!</Text>
+      <Text style={styles.details}>
+        Click the Graph to view full details!
+      </Text>
 
     </SafeAreaView>
   );
@@ -177,14 +239,6 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   },
 
-  graphBox: {
-    height: 160,
-    backgroundColor: "#858585",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#bbb"
-  },
-
   details: {
     color: "#000000",
     textAlign: "center",
@@ -206,4 +260,10 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
 
+  chartContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
 });
