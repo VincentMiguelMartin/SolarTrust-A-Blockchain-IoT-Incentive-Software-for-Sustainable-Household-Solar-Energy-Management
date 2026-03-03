@@ -99,7 +99,7 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#ebeaea",
     paddingHorizontal: 25,
     paddingTop: 60
   },
