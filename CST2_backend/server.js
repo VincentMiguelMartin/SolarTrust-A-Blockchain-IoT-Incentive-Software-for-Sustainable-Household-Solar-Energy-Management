@@ -7,6 +7,12 @@ try {
 
 const express = require("express");
 const cors = require("cors");
+const {
+  getLatestBlock,
+  getTransactionStatus,
+  getWalletUtxos,
+} = require("./services/blockfrostService");
+const { recordEnergyOnChain, runBatch } = require("./services/blockchainRecordService");
 const { createClient } = require("@supabase/supabase-js");
 
 console.log("File is running...");
@@ -155,6 +161,82 @@ app.get("/energy/sync/:plantId", async (req, res) => {
     });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
+  }
+});
+
+// ======================
+// BLOCKCHAIN ROUTES
+// ======================
+
+// GET /blockchain/status — Cardano connectivity check
+app.get("/blockchain/status", async (_req, res) => {
+  try {
+    const latestBlock = await getLatestBlock();
+    res.json({
+      connected: true,
+      network: process.env.BLOCKFROST_NETWORK || "preprod",
+      latestBlock,
+    });
+  } catch (e) {
+    res.status(502).json({ connected: false, error: String(e) });
+  }
+});
+
+// GET /blockchain/tx/:txHash — transaction status
+app.get("/blockchain/tx/:txHash", async (req, res) => {
+  try {
+    const { txHash } = req.params;
+    const status = await getTransactionStatus(txHash);
+    res.json(status);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// POST /blockchain/record — record a single energy reading on-chain
+app.post("/blockchain/record", async (req, res) => {
+  try {
+    const { plantId, solarWatts, gridWatts, exportWatts, ts } = req.body;
+    if (!plantId || solarWatts == null || gridWatts == null || exportWatts == null || !ts) {
+      return res.status(400).json({
+        error: "plantId, solarWatts, gridWatts, exportWatts, ts are required",
+      });
+    }
+    const result = await recordEnergyOnChain(plantId, solarWatts, gridWatts, exportWatts, ts);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// POST /blockchain/batch — batch pending readings and submit Merkle root
+app.post("/blockchain/batch", async (req, res) => {
+  try {
+    const { plantId } = req.body;
+    if (!plantId) {
+      return res.status(400).json({ error: "plantId is required" });
+    }
+    const result = await runBatch(plantId);
+    if (!result) {
+      return res.json({ message: "No pending readings to batch" });
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// GET /blockchain/wallet — wallet UTXOs
+app.get("/blockchain/wallet", async (_req, res) => {
+  try {
+    const address = process.env.CARDANO_WALLET_ADDRESS;
+    if (!address) {
+      return res.status(500).json({ error: "CARDANO_WALLET_ADDRESS not set" });
+    }
+    const utxos = await getWalletUtxos(address);
+    res.json({ address, utxos });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
   }
 });
 
