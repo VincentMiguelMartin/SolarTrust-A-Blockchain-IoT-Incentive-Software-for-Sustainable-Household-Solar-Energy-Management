@@ -2,6 +2,7 @@ const cron = require("node-cron");
 const { createClient } = require("@supabase/supabase-js");
 const { fetchPlantLive } = require("../services/tanekoService");
 const { recordEnergyOnChain } = require("../services/blockchainRecordService");
+const { detectAnomaly } = require("../middleware/validateEnergy");
 const { buildMerkleRoot } = require("../services/merkleService");
 const { submitBatch } = require("../services/blockchainService");
 
@@ -26,9 +27,20 @@ cron.schedule("*/15 * * * *", async () => {
 
     for (const v of values) {
       try {
+        const solarWatts = Number(v.sap ?? 0);
+
+        // Z-Score anomaly detection before storing the reading
+        const check = await detectAnomaly(PLANT_ID, solarWatts);
+        if (check.isAnomaly) {
+          console.log(
+            `[tanekoCron] Anomaly detected — skipping reading (${solarWatts}W): ${check.reason}`
+          );
+          continue;
+        }
+
         const result = await recordEnergyOnChain(
           PLANT_ID,
-          Number(v.sap ?? 0),
+          solarWatts,
           Number(v.iap ?? 0),
           Number(v.eap ?? 0),
           v.ts ?? new Date().toISOString()

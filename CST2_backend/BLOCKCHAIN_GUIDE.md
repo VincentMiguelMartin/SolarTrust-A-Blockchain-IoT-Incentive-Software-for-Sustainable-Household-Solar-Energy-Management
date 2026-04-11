@@ -356,3 +356,196 @@ Taneko IoT API
 | `cron/tanekoCron.js` | Automated 15-min fetch and 6-hour batch schedules |
 | `scripts/generateWallet.js` | One-time wallet generation script |
 | `server.js` | Express server with all API routes |
+| `middleware/validateEnergy.js` | Z-Score anomaly detection for IoT readings |
+| `scripts/diagnostics.js` | Full system diagnostics (10 checks) |
+
+---
+
+## 13. Backend Test Commands
+
+Quick-reference commands for testing the backend. Start the server first (`npm start`), then open a second terminal.
+
+### 13.1 Run full system diagnostics (no server needed)
+
+```bash
+cd CST2_backend
+node scripts/diagnostics.js
+```
+
+This runs 10 automated checks: env vars, Supabase connection, table existence, Taneko API, Blockfrost/Cardano, Merkle tree construction, tamper detection, Supabase read/write, reward formula, and end-to-end pipeline simulation. All 10 should show PASS.
+
+### 13.2 Server health check
+
+**bash / Git Bash:**
+```bash
+curl http://localhost:3000/test
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod http://localhost:3000/test
+```
+
+Expected: `{ "message": "Backend connected successfully!", "status": "connected" }`
+
+### 13.3 Database connection
+
+**bash:**
+```bash
+curl http://localhost:3000/db-test
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod http://localhost:3000/db-test
+```
+
+Expected: returns rows from the `households` table. If you get `fetch failed`, check that `SUPABASE_URL` ends in `.supabase.co` (not `.com`).
+
+### 13.4 Cardano / Blockfrost connection
+
+**bash:**
+```bash
+curl http://localhost:3000/blockchain/status
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod http://localhost:3000/blockchain/status
+```
+
+Expected: `connected: true` with `latestBlock` containing `hash`, `height`, `slot`, `epoch`.
+
+### 13.5 Taneko IoT live sync
+
+**bash:**
+```bash
+curl http://localhost:3000/energy/sync/TTC60011
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod http://localhost:3000/energy/sync/TTC60011
+```
+
+Expected: returns the latest reading with `solarWatts`, `gridWatts`, `exportWatts`, and `ts`.
+
+### 13.6 Record a single reading
+
+**bash:**
+```bash
+curl -X POST http://localhost:3000/blockchain/record \
+  -H "Content-Type: application/json" \
+  -d '{"plantId":"TTC60011","solarWatts":1200,"gridWatts":50,"exportWatts":300,"ts":"2026-04-11T10:00:00Z"}'
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:3000/blockchain/record `
+  -ContentType "application/json" `
+  -Body '{"plantId":"TTC60011","solarWatts":1200,"gridWatts":50,"exportWatts":300,"ts":"2026-04-11T10:00:00Z"}'
+```
+
+Expected: returns `readingId`, `readingHash`, `cardanoBlock`, `cardanoSlot`. Server terminal should show T1/T2 timestamps and latency in ms.
+
+### 13.7 Wallet UTXOs
+
+**bash:**
+```bash
+curl http://localhost:3000/blockchain/wallet
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod http://localhost:3000/blockchain/wallet
+```
+
+Expected: returns `address` and `utxos` array. If the wallet is funded, you should see at least one UTXO.
+
+### 13.8 Batch submit to Cardano (costs ~0.2 tADA, takes up to 5 min)
+
+Only run this if you have pending readings and want to commit them on-chain:
+
+**bash:**
+```bash
+curl -X POST http://localhost:3000/blockchain/batch \
+  -H "Content-Type: application/json" \
+  -d '{"plantId":"TTC60011"}'
+```
+
+**PowerShell:**
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:3000/blockchain/batch `
+  -ContentType "application/json" `
+  -Body '{"plantId":"TTC60011"}'
+```
+
+Expected: returns `merkleRoot`, `txHash`, `confirmed: true`, `batchSize`. Verify the transaction at `https://preprod.cardanoscan.io/transaction/PASTE_TX_HASH_HERE`.
+
+### 13.9 Test anomaly detection (no server needed)
+
+Run this directly to test the Z-Score anomaly detection against real database readings:
+
+```bash
+cd CST2_backend
+node -e "
+  require('dotenv').config();
+  const { detectAnomaly } = require('./middleware/validateEnergy');
+  (async () => {
+    console.log('Normal reading:');
+    console.log(await detectAnomaly('TTC60011', 500));
+    console.log('Negative reading:');
+    console.log(await detectAnomaly('TTC60011', -100));
+    console.log('Over physical max:');
+    console.log(await detectAnomaly('TTC60011', 25000));
+    console.log('Extreme spike:');
+    console.log(await detectAnomaly('TTC60011', 15000));
+  })();
+"
+```
+
+Expected:
+- 500W: `isAnomaly: false` (within normal range)
+- -100W: `isAnomaly: true` (negative wattage)
+- 25000W: `isAnomaly: true` (exceeds physical max)
+- 15000W: `isAnomaly: true` (Z-Score exceeds threshold 3)
+
+### 13.10 Verify cron job registration
+
+The server registers two cron jobs on startup. Check the server terminal output after `npm start` for any errors. To manually verify the cron module loads:
+
+```bash
+cd CST2_backend
+node -e "
+  require('dotenv').config();
+  const cron = require('node-cron');
+  const orig = cron.schedule;
+  const jobs = [];
+  cron.schedule = (p, fn) => { jobs.push(p); };
+  require('./cron/tanekoCron');
+  cron.schedule = orig;
+  console.log('Registered cron schedules:', jobs);
+"
+```
+
+Expected: `["*/15 * * * *", "0 */6 * * *"]` (every 15 minutes and every 6 hours).
+
+### 13.11 Supabase SQL queries for verification
+
+Run these in the Supabase SQL Editor to inspect stored data:
+
+```sql
+-- Latest readings
+SELECT id, ts, solar_watts, reading_hash, blockchain_status
+FROM readings WHERE household_id = 'TTC60011'
+ORDER BY ts DESC LIMIT 10;
+
+-- Batch history
+SELECT id, merkle_root, tx_hash, batch_size, status, created_at
+FROM blockchain_batches ORDER BY created_at DESC LIMIT 5;
+
+-- Count pending vs confirmed readings
+SELECT blockchain_status, COUNT(*)
+FROM readings WHERE household_id = 'TTC60011'
+GROUP BY blockchain_status;
+```

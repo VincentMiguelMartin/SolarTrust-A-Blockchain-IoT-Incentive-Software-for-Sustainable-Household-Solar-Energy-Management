@@ -8,7 +8,22 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+/**
+ * Records a single energy reading to Supabase with blockchain metadata.
+ * Logs T1 (function entry) and T2 (after Supabase insert) timestamps
+ * along with the T2−T1 latency in milliseconds.
+ *
+ * @param {string} plantId - The household/plant identifier.
+ * @param {number} solarWatts - Solar generation in watts.
+ * @param {number} gridWatts - Grid consumption in watts.
+ * @param {number} exportWatts - Export to grid in watts.
+ * @param {string} ts - ISO 8601 timestamp of the reading.
+ * @returns {Promise<{readingId: string, readingHash: string, cardanoBlock: number, cardanoSlot: number}>}
+ */
 async function recordEnergyOnChain(plantId, solarWatts, gridWatts, exportWatts, ts) {
+  const T1 = new Date();
+  console.log(`[blockchainRecordService] T1 (entry): ${T1.toISOString()}`);
+
   const readingHash = hashReading(plantId, solarWatts, gridWatts, ts);
   const latestBlock = await getLatestBlock();
 
@@ -29,6 +44,10 @@ async function recordEnergyOnChain(plantId, solarWatts, gridWatts, exportWatts, 
     ])
     .select()
     .single();
+
+  const T2 = new Date();
+  console.log(`[blockchainRecordService] T2 (insert done): ${T2.toISOString()}`);
+  console.log(`[blockchainRecordService] T2-T1 latency: ${T2 - T1}ms`);
 
   if (error) {
     throw new Error(`Supabase insert failed: ${error.message}`);
