@@ -33,10 +33,25 @@ cron.schedule("*/15 * * * *", async () => {
         const check = await detectAnomaly(PLANT_ID, solarWatts);
         if (check.isAnomaly) {
           console.log(
-            `[tanekoCron] Anomaly detected — skipping reading (${solarWatts}W): ${check.reason}`
+            `[tanekoCron] Anomaly detected — reason: ${check.reason}, zScore: ${check.zScore ?? "N/A"}, value: ${solarWatts}W`
           );
+          try {
+            await supabase.from("anomaly_logs").insert([{
+              plant_id: PLANT_ID,
+              solar_watts: solarWatts,
+              reason: check.reason,
+              z_score: check.zScore ?? null,
+              detected_at: new Date().toISOString(),
+            }]);
+          } catch (logErr) {
+            console.error("[tanekoCron] Failed to insert anomaly log:", logErr.message);
+          }
           continue;
         }
+
+        console.log(
+          `[tanekoCron] Reading accepted — solarWatts: ${solarWatts}W, zScore: ${check.zScore ?? "N/A"}`
+        );
 
         const result = await recordEnergyOnChain(
           PLANT_ID,

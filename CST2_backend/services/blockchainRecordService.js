@@ -22,7 +22,7 @@ const supabase = createClient(
  */
 async function recordEnergyOnChain(plantId, solarWatts, gridWatts, exportWatts, ts) {
   const T1 = new Date();
-  console.log(`[blockchainRecordService] T1 (entry): ${T1.toISOString()}`);
+  console.log(`[blockchainRecordService] T1 payload received: ${T1.toISOString()}`);
 
   const readingHash = hashReading(plantId, solarWatts, gridWatts, ts);
   const latestBlock = await getLatestBlock();
@@ -45,13 +45,13 @@ async function recordEnergyOnChain(plantId, solarWatts, gridWatts, exportWatts, 
     .select()
     .single();
 
-  const T2 = new Date();
-  console.log(`[blockchainRecordService] T2 (insert done): ${T2.toISOString()}`);
-  console.log(`[blockchainRecordService] T2-T1 latency: ${T2 - T1}ms`);
-
   if (error) {
     throw new Error(`Supabase insert failed: ${error.message}`);
   }
+
+  const T2 = new Date();
+  console.log(`[blockchainRecordService] T2 stored: ${T2.toISOString()}`);
+  console.log(`[blockchainRecordService] IoT Ingestion Latency (T1→T2): ${T2 - T1}ms`);
 
   return {
     readingId: data.id,

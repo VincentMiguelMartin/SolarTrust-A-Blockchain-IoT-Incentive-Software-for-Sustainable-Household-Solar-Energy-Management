@@ -14,6 +14,7 @@ const {
 } = require("./services/blockfrostService");
 const { recordEnergyOnChain, runBatch } = require("./services/blockchainRecordService");
 const { createClient } = require("@supabase/supabase-js");
+const energyRoutes = require("./routes/energyRoutes");
 
 console.log("File is running...");
 console.log("Running file:", __filename);
@@ -235,6 +236,107 @@ app.get("/blockchain/wallet", async (_req, res) => {
     }
     const utxos = await getWalletUtxos(address);
     res.json({ address, utxos });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// Energy sync routes (Taneko IoT data)
+app.use("/energy", energyRoutes);
+
+// ======================
+// GAME SESSION ROUTES
+// ======================
+
+// POST /game/session — record a completed game session
+app.post("/game/session", async (req, res) => {
+  try {
+    const { householdId, cleanliness, score } = req.body;
+
+    if (!householdId || cleanliness == null || score == null) {
+      return res.status(400).json({
+        error: "householdId, cleanliness, and score are required",
+      });
+    }
+
+    const completedAt = new Date().toISOString();
+
+    const { error } = await supabase.from("game_sessions").insert([
+      {
+        household_id: householdId,
+        cleanliness,
+        score,
+        completed_at: completedAt,
+      },
+    ]);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    console.log(
+      `[game] Session recorded for ${householdId}, score: ${score}, cleanliness: ${cleanliness}%`
+    );
+
+    res.json({
+      success: true,
+      message: "Game session recorded",
+      householdId,
+      score,
+      cleanliness,
+      completedAt,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// ======================
+// DASHBOARD ROUTES
+// ======================
+
+// GET /dashboard/:userId — user energy + game summary
+app.get("/dashboard/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Confirmed readings for this household
+    const { data: readings, error: readingsErr } = await supabase
+      .from("readings")
+      .select("solar_watts")
+      .eq("household_id", userId)
+      .eq("blockchain_status", "confirmed");
+
+    if (readingsErr) {
+      return res.status(500).json({ error: readingsErr.message });
+    }
+
+    const totalVerifiedEnergyWatts = (readings || []).reduce(
+      (sum, r) => sum + (r.solar_watts || 0),
+      0
+    );
+    const totalConfirmedReadings = (readings || []).length;
+
+    // Game sessions for this household
+    const { data: sessions, error: sessionsErr } = await supabase
+      .from("game_sessions")
+      .select("id")
+      .eq("household_id", userId);
+
+    if (sessionsErr) {
+      return res.status(500).json({ error: sessionsErr.message });
+    }
+
+    const totalGameSessions = (sessions || []).length;
+
+    // rewardPoints uses eap * 2 temporarily until the full formula is implemented
+    res.json({
+      userId,
+      totalVerifiedEnergyWatts,
+      totalConfirmedReadings,
+      totalGameSessions,
+      rewardPoints: totalVerifiedEnergyWatts * 2,
+    });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
