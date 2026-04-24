@@ -1,0 +1,29 @@
+{
+  "runId": "LATENCY_1777053156856",
+  "timestamp": "2026-04-24T17:52:41.728Z",
+  "testFile": "ingestion-latency.test.js",
+  "tcId": "TC-IL-01",
+  "method": "direct recordEnergyOnChain (no HTTP overhead)",
+  "timer": "performance.now() monotonic",
+  "warmup": 2,
+  "rawSamples": [
+    338.25,
+    331.88,
+    337.83,
+    351.26,
+    334.33,
+    334.02,
+    336.3,
+    375.64,
+    325.91,
+    315.9
+  ],
+  "stats": {
+    "mean": 338.13,
+    "sd": 15.97,
+    "min": 315.9,
+    "max": 375.64,
+    "n": 10
+  },
+  "pass": true
+}

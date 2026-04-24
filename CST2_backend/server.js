@@ -14,7 +14,6 @@ const {
 } = require("./services/blockfrostService");
 const { recordEnergyOnChain, runBatch } = require("./services/blockchainRecordService");
 const { createClient } = require("@supabase/supabase-js");
-const energyRoutes = require("./routes/energyRoutes");
 
 console.log("File is running...");
 console.log("Running file:", __filename);
@@ -241,8 +240,6 @@ app.get("/blockchain/wallet", async (_req, res) => {
   }
 });
 
-// Energy sync routes (Taneko IoT data)
-app.use("/energy", energyRoutes);
 
 // ======================
 // GAME SESSION ROUTES
