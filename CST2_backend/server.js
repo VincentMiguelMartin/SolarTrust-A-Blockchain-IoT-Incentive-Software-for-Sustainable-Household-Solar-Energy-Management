@@ -14,6 +14,7 @@ const {
 } = require("./services/blockfrostService");
 const { recordEnergyOnChain, runBatch } = require("./services/blockchainRecordService");
 const { createClient } = require("@supabase/supabase-js");
+const rewardRoutes = require("./routes/rewardRoutes");
 
 console.log("File is running...");
 console.log("Running file:", __filename);
@@ -22,6 +23,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/rewards", rewardRoutes);
 
 // Check environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -326,13 +328,27 @@ app.get("/dashboard/:userId", async (req, res) => {
 
     const totalGameSessions = (sessions || []).length;
 
-    // rewardPoints uses eap * 2 temporarily until the full formula is implemented
+    // Real reward points: sum of computed rewards from confirmed batches
+    const { data: rewardRows, error: rewardErr } = await supabase
+      .from("rewards")
+      .select("reward_points")
+      .eq("household_id", userId);
+
+    if (rewardErr) {
+      return res.status(500).json({ error: rewardErr.message });
+    }
+
+    const rewardPoints = (rewardRows || []).reduce(
+      (sum, r) => sum + (Number(r.reward_points) || 0),
+      0
+    );
+
     res.json({
       userId,
       totalVerifiedEnergyWatts,
       totalConfirmedReadings,
       totalGameSessions,
-      rewardPoints: totalVerifiedEnergyWatts * 2,
+      rewardPoints: Math.round(rewardPoints * 100) / 100,
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });

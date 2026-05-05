@@ -2,6 +2,10 @@ const { createClient } = require("@supabase/supabase-js");
 const { hashReading, getLatestBlock } = require("./blockfrostService");
 const { buildMerkleRoot } = require("./merkleService");
 const { submitBatch } = require("./blockchainService");
+const { computeReward } = require("./rewardService");
+const { readingsToKwh } = require("./energyConversionService");
+const { getBaselineKwh } = require("./baselineService");
+
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -138,14 +142,83 @@ async function runBatch(plantId) {
     })
     .in("id", readingIds);
 
-  if (readingsUpdateError) {
-    console.error(
-      "[blockchainRecordService] Failed to update readings:",
-      readingsUpdateError.message
-    );
-  }
+    if (readingsUpdateError) {
+      console.error(
+        "[blockchainRecordService] Failed to update readings:",
+        readingsUpdateError.message
+      );
+    }
 
-  return { merkleRoot, txHash, confirmed: true, batchSize };
+    // ====== REWARD COMPUTATION ======
+    // Triggered ONLY after Blockfrost confirms the batch on-chain.
+    // Order matches Sir Pura's pipeline requirement: rewards fire after
+    // blockchain confirmation, not before.
+    let computedReward = null;
+    try {
+      const energySavedKwh = readingsToKwh(readings);
+      const baselineKwh = await getBaselineKwh(plantId);
+      const networkDemandKw = Number(process.env.NETWORK_DEMAND_KW || 0);
+      const networkCapacityKw = Number(process.env.NETWORK_CAPACITY_KW || 1);
+
+      // Use batch midpoint for W_time so the reward reflects the period,
+      // not the moment the batch happened to commit.
+      const midpointTs = new Date(
+        (new Date(periodStart).getTime() +
+          new Date(periodEnd).getTime()) / 2
+      ).toISOString();
+
+      const { reward, breakdown } = computeReward({
+        energySavedKwh,
+        baselineKwh,
+        networkDemandKw,
+        networkCapacityKw,
+        timestamp: midpointTs,
+      });
+
+      const { error: rewardErr } = await supabase.from("rewards").insert([
+        {
+          household_id: plantId,
+          batch_id: batchData.id,
+          energy_saved_kwh: energySavedKwh,
+          baseline_kwh: baselineKwh,
+          w_time: breakdown.Wt,
+          w_network: breakdown.Wn,
+          w_behavior: breakdown.Wb,
+          reward_points: reward,
+        },
+      ]);
+
+      if (rewardErr) {
+        console.error(
+          "[blockchainRecordService] Reward insert failed:",
+          rewardErr.message
+        );
+      } else {
+        console.log(
+          `[blockchainRecordService] Reward = ${reward} pts | ` +
+          `kWh=${energySavedKwh.toFixed(3)} ` +
+          `Wt=${breakdown.Wt} Wn=${breakdown.Wn.toFixed(3)} ` +
+          `Wb=${breakdown.Wb.toFixed(3)} ` +
+          `(baseline=${baselineKwh ?? "null"})`
+        );
+        computedReward = reward;
+      }
+    } catch (rewardError) {
+      // Reward computation failure must NOT undo the on-chain commit.
+      // The batch is already confirmed — just log and move on.
+      console.error(
+        "[blockchainRecordService] Reward computation failed:",
+        rewardError.message
+      );
+    }
+
+    return {
+      merkleRoot,
+      txHash,
+      confirmed: true,
+      batchSize,
+      reward: computedReward,
+    };
 }
 
 module.exports = { recordEnergyOnChain, runBatch };
