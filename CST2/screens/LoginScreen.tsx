@@ -17,6 +17,10 @@ import { AuthContext, UserRole } from "../context/AuthContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
+const BASE_URL = API_BASE_URL.replace(/\/+$/, "");
+
 export default function LoginScreen({ navigation }: Props) {
 
   const [email, setEmail] = useState("");
@@ -38,13 +42,42 @@ export default function LoginScreen({ navigation }: Props) {
 
     if (data.user) {
       console.log("Logged in:", data.user.email);
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("user_profiles")
         .select("role")
         .eq("id", data.user.id)
         .maybeSingle();
 
-      const role: UserRole = profile?.role === "admin" ? "admin" : "user";
+      if (profileError) {
+        console.log("Unable to load profile role:", profileError.message);
+      }
+
+      let storedRole =
+        profile?.role ??
+        data.user.user_metadata?.role ??
+        data.user.app_metadata?.role;
+
+      if (data.session?.access_token) {
+        try {
+          const roleResponse = await fetch(`${BASE_URL}/auth/role`, {
+            headers: {
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+          });
+
+          if (roleResponse.ok) {
+            const roleData = await roleResponse.json();
+            storedRole = roleData?.role ?? storedRole;
+          } else {
+            console.log("Unable to load server role:", roleResponse.status);
+          }
+        } catch (roleError) {
+          console.log("Unable to load server role:", roleError);
+        }
+      }
+
+      const role: UserRole =
+        String(storedRole).trim().toLowerCase() === "admin" ? "admin" : "user";
 
       setRole(role);
       navigation.replace(role === "admin" ? "AdminDashboard" : "UserDashboard");
