@@ -1,20 +1,19 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   View,
   Text,
   TouchableOpacity,
   ScrollView,
-  StyleSheet
+  StyleSheet,
 } from "react-native";
-import { syncEnergy } from "../services/apiService.js";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import { LineChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
+import { useEnergy } from "../context/EnergyContext";
 
-/* THIS connects the screen to the real navigator */
 type Props = NativeStackScreenProps<RootStackParamList, "Dashboard">;
 
 type AnomalyLevel = "minor" | "warning" | "urgent";
@@ -67,7 +66,12 @@ function stdDev(values: number[], avg: number) {
   return Math.sqrt(variance);
 }
 
-function buildAnomalyReports(data: any, solarWatts: number, ts: string, history: number[]): AnomalyReport[] {
+function buildAnomalyReports(
+  data: any,
+  solarWatts: number,
+  ts: string,
+  history: number[]
+): AnomalyReport[] {
   const alert =
     data?.anomaly ??
     data?.alert ??
@@ -173,92 +177,45 @@ function buildAnomalyReports(data: any, solarWatts: number, ts: string, history:
 
 export default function DashboardScreen({ navigation }: Props) {
   const screenWidth = Dimensions.get("window").width;
-  const powerHistoryRef = useRef<number[]>([]);
-
-  const [solarWatts, setSolarWatts] = useState(0);
-  const [powerHistory, setPowerHistory] = useState<number[]>([]);
-  const [lastUpdate, setLastUpdate] = useState("");
-  const [error, setError] = useState("");
-  const [debugUrl, setDebugUrl] = useState("");
-  const [debugState, setDebugState] = useState("idle");
+  const {
+    reading,
+    powerHistory,
+    lastUpdate,
+    error,
+    debugUrl,
+    debugState,
+    rawData,
+  } = useEnergy();
+  const solarWatts = reading.solarWatts;
   const [anomalyReports, setAnomalyReports] =
     useState<AnomalyReport[]>(normalReports);
-  const [selectedReport, setSelectedReport] = useState<AnomalyReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<AnomalyReport | null>(
+    null
+  );
 
   useEffect(() => {
-    let mounted = true;
-
-    const loadEnergy = async () => {
-      try {
-        const base =
-          process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
-
-        setDebugUrl(`${base}/energy/sync/TTC60011`);
-        setDebugState("loading");
-
-        const data = await syncEnergy("TTC60011");
-
-        const solarRaw =
-          data?.reading?.solarWatts;
-        
-        const ts =
-          data?.reading?.ts ??
-          data?.latest?.ts ??
-        "";
-
-        if (typeof solarRaw === "number" && !isNaN(solarRaw)) {
-          const rounded = Math.round(solarRaw);
-
-        console.log("⚡ Solar value:", rounded);
-
-        setSolarWatts(rounded);
-        setLastUpdate(ts);
-        setError("");
-        setDebugState("ok");
-        const reports = buildAnomalyReports(
-          data,
-          rounded,
-          ts,
-          powerHistoryRef.current
-        );
-        setAnomalyReports(reports);
-        setSelectedReport(null);
-
-        // 🔥 Update chart history (keep last 20 points)
-        setPowerHistory(prev => {
-          const updated = [...prev, rounded];
-          if (updated.length > 20) updated.shift();
-            powerHistoryRef.current = updated;
-            return updated;
-        });
-
-      }
-
-    } catch (e) {
-        const message = e instanceof Error ? e.message : "Failed to load energy";
-        setError(message);
-        setDebugState("failed");
-        setAnomalyReports([
-          {
-            level: "urgent",
-            label: "Urgent",
-            message: `Energy sync failed: ${message}`,
-            time: "Now",
-          },
-        ]);
+    if (error) {
+      setAnomalyReports([
+        {
+          level: "urgent",
+          label: "Urgent",
+          message: `Energy sync failed: ${error}`,
+          time: "Now",
+        },
+      ]);
+      setSelectedReport(null);
+      return;
     }
-  };
 
-    loadEnergy();
+    if (!rawData) {
+      return;
+    }
 
-    // ✅ 5 minutes interval (300,000 ms)
-    const timer = setInterval(loadEnergy, 300000);
-
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
-  }, []);
+    setAnomalyReports(
+      buildAnomalyReports(rawData, solarWatts, lastUpdate, powerHistory.slice(0, -1))
+    );
+    setSelectedReport(null);
+  }, [error, lastUpdate, powerHistory, rawData, solarWatts]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -266,158 +223,157 @@ export default function DashboardScreen({ navigation }: Props) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => navigation.navigate("Menu")}>
+            <MaterialIcons name="menu" size={26} color="black" />
+          </TouchableOpacity>
 
-      {/* TOP BAR */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.navigate("Menu")}>
-          <MaterialIcons name="menu" size={26} color="black" />
+          <View style={styles.topRight}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate("Game")}
+            >
+              <Ionicons name="game-controller-outline" size={24} color="black" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate("Store")}
+            >
+              <Ionicons name="cart-outline" size={24} color="black" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate("Notifications")}
+            >
+              <Ionicons name="notifications-outline" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Text style={styles.title}>DashBoard</Text>
+
+        <TouchableOpacity
+          style={styles.card}
+          activeOpacity={0.85}
+          onPress={() => navigation.push("Statistics")}
+        >
+          <View style={styles.powerRow}>
+            <View>
+              <Text style={styles.cardLabel}>Solar Power</Text>
+              <Text style={styles.powerText}>{solarWatts} W</Text>
+            </View>
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>{debugState}</Text>
+            </View>
+          </View>
+
+          <View style={styles.chartContainer}>
+            <LineChart
+              data={{
+                labels: powerHistory.map((_, i) => i.toString()),
+                datasets: [
+                  {
+                    data: powerHistory.length ? powerHistory : [0],
+                  },
+                ],
+              }}
+              width={screenWidth - 90}
+              height={160}
+              yAxisSuffix="W"
+              withInnerLines={false}
+              withOuterLines={false}
+              withShadow={false}
+              fromZero
+              chartConfig={{
+                backgroundColor: "#f7faf6",
+                backgroundGradientFrom: "#f7faf6",
+                backgroundGradientTo: "#ffffff",
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(50, 112, 47, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
+                propsForDots: {
+                  r: "3",
+                  strokeWidth: "2",
+                  stroke: "#32702f",
+                },
+                propsForBackgroundLines: {
+                  strokeDasharray: "",
+                  stroke: "#d7e4d5",
+                },
+              }}
+              bezier
+              style={styles.chart}
+            />
+          </View>
         </TouchableOpacity>
 
-        <View style={styles.topRight}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate("Game")}
-          >
-            <Ionicons name="game-controller-outline" size={24} color="black" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate("Store")}
-          >
-            <Ionicons name="cart-outline" size={24} color="black" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.navigate("Notifications")}
-          >
-            <Ionicons name="notifications-outline" size={24} color="black" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* TITLE */}
-      <Text style={styles.title}>DashBoard</Text>
-
-      {/* CARD */}
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.85}
-        onPress={() => navigation.push("Statistics")}
-      >
-
-        <View style={styles.powerRow}>
-          <Text style={styles.powerText}>
-            Solar Power: {solarWatts} W
-          </Text>
-        </View>
-
-        {/* 🔥 LIVE LINE CHART */}
-        <View style={styles.chartContainer}>
-        <LineChart
-          data={{
-            labels: powerHistory.map((_, i) => i.toString()),
-            datasets: [
-              {
-                data: powerHistory.length ? powerHistory : [0],
-              },
-            ],
-          }}
-          width={screenWidth - 90}
-          height={160}
-          yAxisSuffix="W"
-          chartConfig={{
-            backgroundColor: "#ffffff",
-            backgroundGradientFrom: "#ffffff",
-            backgroundGradientTo: "#ffffff",
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(50,112,47, ${opacity})`,
-            labelColor: () => "#000",
-            propsForDots: {
-              r: "4",
-              strokeWidth: "2",
-              stroke: "#32702f",
-            },
-          }}
-          bezier
-          style={{
-            borderRadius: 10,
-          }}
-        />
-      </View>
-
-      </TouchableOpacity>
-
-      {lastUpdate ? (
-        <Text style={styles.meta}>Last update: {lastUpdate}</Text>
-      ) : null}
-
-      {error ? (
-        <Text style={styles.error}>IoT error: {error}</Text>
-      ) : null}
-
-      <Text style={styles.meta}>API: {debugUrl || "not set"}</Text>
-      <Text style={styles.meta}>State: {debugState}</Text>
-
-      <Text style={styles.details}>
-        Click the Graph to view full details!
-      </Text>
-
-      <View style={styles.reportBoard}>
-        <Text style={styles.reportTitle}>Anomaly Detection Reports</Text>
-
-        {anomalyReports.map((report, index) => (
-          <TouchableOpacity
-            key={`${report.level}-${report.time}-${index}`}
-            style={[
-              styles.reportRow,
-              styles[reportStyleByLevel[report.level]],
-            ]}
-            activeOpacity={report.level === "minor" ? 1 : 0.75}
-            disabled={report.level === "minor"}
-            onPress={() =>
-              setSelectedReport((current) =>
-                current === report ? null : report
-              )
-            }
-          >
-            <View style={styles.reportTextGroup}>
-              <Text style={styles.reportLabel}>{report.label}</Text>
-              <Text style={styles.reportMessage}>{report.message}</Text>
-            </View>
-            <View style={styles.reportActionGroup}>
-              <Text style={styles.reportTime}>{report.time}</Text>
-              {report.level !== "minor" ? (
-                <Text style={styles.viewReportText}>View</Text>
-              ) : null}
-            </View>
-          </TouchableOpacity>
-        ))}
-
-        {selectedReport ? (
-          <View style={styles.reportDetails}>
-            <Text style={styles.reportDetailsTitle}>
-              {selectedReport.label} Reading
-            </Text>
-            <Text style={styles.reportDetailsText}>
-              Current reading: {selectedReport.readingWatts ?? solarWatts} W
-            </Text>
-            {selectedReport.previousAverageWatts != null ? (
-              <Text style={styles.reportDetailsText}>
-                Recent average: {selectedReport.previousAverageWatts} W
-              </Text>
-            ) : null}
-            <Text style={styles.reportDetailsText}>
-              Time: {selectedReport.time}
-            </Text>
-            <Text style={styles.reportDetailsText}>
-              Action: {selectedReport.message}
-            </Text>
-          </View>
+        {lastUpdate ? (
+          <Text style={styles.meta}>Last update: {lastUpdate}</Text>
         ) : null}
-      </View>
 
+        {error ? <Text style={styles.error}>IoT error: {error}</Text> : null}
+
+        <Text style={styles.meta}>API: {debugUrl || "not set"}</Text>
+        <Text style={styles.meta}>State: {debugState}</Text>
+
+        <Text style={styles.details}>Click the Graph to view full details!</Text>
+
+        <View style={styles.reportBoard}>
+          <Text style={styles.reportTitle}>Anomaly Detection Reports</Text>
+
+          {anomalyReports.map((report, index) => (
+            <TouchableOpacity
+              key={`${report.level}-${report.time}-${index}`}
+              style={[
+                styles.reportRow,
+                styles[reportStyleByLevel[report.level]],
+              ]}
+              activeOpacity={report.level === "minor" ? 1 : 0.75}
+              disabled={report.level === "minor"}
+              onPress={() =>
+                setSelectedReport((current) =>
+                  current === report ? null : report
+                )
+              }
+            >
+              <View style={styles.reportTextGroup}>
+                <Text style={styles.reportLabel}>{report.label}</Text>
+                <Text style={styles.reportMessage}>{report.message}</Text>
+              </View>
+              <View style={styles.reportActionGroup}>
+                <Text style={styles.reportTime}>{report.time}</Text>
+                {report.level !== "minor" ? (
+                  <Text style={styles.viewReportText}>View</Text>
+                ) : null}
+              </View>
+            </TouchableOpacity>
+          ))}
+
+          {selectedReport ? (
+            <View style={styles.reportDetails}>
+              <Text style={styles.reportDetailsTitle}>
+                {selectedReport.label} Reading
+              </Text>
+              <Text style={styles.reportDetailsText}>
+                Current reading: {selectedReport.readingWatts ?? solarWatts} W
+              </Text>
+              {selectedReport.previousAverageWatts != null ? (
+                <Text style={styles.reportDetailsText}>
+                  Recent average: {selectedReport.previousAverageWatts} W
+                </Text>
+              ) : null}
+              <Text style={styles.reportDetailsText}>
+                Time: {selectedReport.time}
+              </Text>
+              <Text style={styles.reportDetailsText}>
+                Action: {selectedReport.message}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -439,24 +395,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 15
+    marginBottom: 15,
   },
 
   topRight: {
     flexDirection: "row",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   iconButton: {
     marginLeft: 18,
-    padding: 4
+    padding: 4,
   },
 
   title: {
     color: "#32702f",
     fontSize: 32,
     fontWeight: "bold",
-    marginBottom: 20
+    marginBottom: 20,
   },
 
   card: {
@@ -469,19 +425,51 @@ const styles = StyleSheet.create({
   powerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 12
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  cardLabel: {
+    color: "#d8e6d6",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 4,
   },
 
   powerText: {
     color: "#FFF",
-    fontWeight: "600"
+    fontSize: 24,
+    fontWeight: "800",
+  },
+
+  liveBadge: {
+    backgroundColor: "#ffffff",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#32702f",
+    marginRight: 6,
+  },
+
+  liveText: {
+    color: "#32702f",
+    fontSize: 11,
+    fontWeight: "600",
   },
 
   details: {
     color: "#000000",
     textAlign: "center",
     marginTop: 18,
-    marginBottom: 18
+    marginBottom: 18,
   },
 
   reportBoard: {
@@ -582,20 +570,25 @@ const styles = StyleSheet.create({
     color: "#000000",
     textAlign: "center",
     marginTop: 10,
-    fontSize: 12
+    fontSize: 12,
   },
 
   error: {
     color: "#ff7070",
     textAlign: "center",
     marginTop: 10,
-    fontSize: 12
+    fontSize: 12,
   },
 
   chartContainer: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    paddingVertical: 10,
+    backgroundColor: "#f7faf6",
+    borderRadius: 12,
+    paddingVertical: 8,
     alignItems: "center",
+    overflow: "hidden",
+  },
+
+  chart: {
+    borderRadius: 12,
   },
 });
