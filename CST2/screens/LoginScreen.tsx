@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useContext, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 import {
@@ -13,7 +13,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext, UserRole } from "../context/AuthContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -22,6 +22,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const { setRole } = useContext(AuthContext);
 
   const handleLogin = async () => {
 
@@ -37,7 +38,16 @@ export default function LoginScreen({ navigation }: Props) {
 
     if (data.user) {
       console.log("Logged in:", data.user.email);
-      navigation.replace("Dashboard");
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      const role: UserRole = profile?.role === "admin" ? "admin" : "user";
+
+      setRole(role);
+      navigation.replace(role === "admin" ? "AdminDashboard" : "UserDashboard");
     }
   };
 

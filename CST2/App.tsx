@@ -9,6 +9,7 @@ import NotificationsScreen from "./screens/NotificationsScreen";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import DashboardScreen from "./screens/DashboardScreen";
+import UserDashboardScreen from "./screens/UserDashboardScreen";
 import MenuScreen from "./screens/MenuScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import ReportsScreen from "./screens/ReportsScreen";
@@ -23,6 +24,8 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Dashboard: undefined;
+  AdminDashboard: undefined;
+  UserDashboard: undefined;
   Menu: undefined;
   Settings: undefined;
   Reports: undefined;
@@ -71,6 +74,8 @@ export default function App() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="AdminDashboard" component={DashboardScreen} />
+            <Stack.Screen name="UserDashboard" component={UserDashboardScreen} />
             <Stack.Screen name="Game" component={GameScreen} />
             <Stack.Screen name="Reward" component={RewardScreen} />
             <Stack.Screen name="Menu" component={MenuScreen} />
