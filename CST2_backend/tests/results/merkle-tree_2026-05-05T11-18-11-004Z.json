@@ -1,0 +1,75 @@
+{
+  "runId": "MERKLE_1777979890988",
+  "timestamp": "2026-05-05T11:18:11.007Z",
+  "testFile": "merkle-tree.test.js",
+  "results": [
+    {
+      "tcId": "TC-MT-01",
+      "name": "Single reading: root equals leaf hash",
+      "passed": true,
+      "detail": "root=12fdfc0856324e67...",
+      "durationMs": 0.71
+    },
+    {
+      "tcId": "TC-MT-02",
+      "name": "Two readings: root equals SHA-256(leaf1||leaf2)",
+      "passed": true,
+      "detail": "root=cf8723c7491f5713...",
+      "durationMs": 0.46
+    },
+    {
+      "tcId": "TC-MT-03",
+      "name": "Odd count (3): last leaf duplicated, tree balanced",
+      "passed": true,
+      "detail": "root=d44626aab5814726...",
+      "durationMs": 0.47
+    },
+    {
+      "tcId": "TC-MT-04",
+      "name": "Even count (4): standard binary tree, valid 64-char hex",
+      "passed": true,
+      "detail": "root=9541b340e37c2bfd...",
+      "durationMs": 0.41
+    },
+    {
+      "tcId": "TC-MT-05",
+      "name": "Large batch (60): completes, valid 64-char hex root",
+      "passed": true,
+      "detail": "root=7d37ce8eadd9b8e7...",
+      "durationMs": 1.17
+    },
+    {
+      "tcId": "TC-MT-06",
+      "name": "Determinism: same input produces identical root across 3 runs",
+      "passed": true,
+      "detail": "stable across 3 calls",
+      "durationMs": 0.67
+    },
+    {
+      "tcId": "TC-MT-07",
+      "name": "Tamper detection: 1 altered reading produces different root",
+      "passed": true,
+      "detail": "original=39f00d1557da... tampered=2604ab9b1634...",
+      "durationMs": 0.41
+    },
+    {
+      "tcId": "TC-MT-08",
+      "name": "Leaf composition: SHA-256(plantId|solarWatts|gridWatts|ts) pipe-delimited",
+      "passed": true,
+      "detail": "leaf=d1431fd08f8b4178...",
+      "durationMs": 0.18
+    },
+    {
+      "tcId": "TC-MT-09",
+      "name": "Empty batch: throws handled error with 'empty' message",
+      "passed": true,
+      "detail": "throws Error('Cannot build Merkle root from empty readings array')",
+      "durationMs": 0.32
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0
+  }
+}

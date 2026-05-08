@@ -10,6 +10,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 router.post("/calculate", async (req, res) => {
   try {
     const {
@@ -47,11 +49,13 @@ router.post("/calculate", async (req, res) => {
       timestamp,
     });
 
+    const safeBatchId = batchId && UUID_RE.test(String(batchId)) ? batchId : null;
+
     const { data, error } = await supabase
       .from("rewards")
       .insert({
         household_id: householdId,
-        batch_id: batchId || null,
+        batch_id: safeBatchId,
         energy_saved_kwh: Number(energySavedKwh),
         baseline_kwh: baselineKwh,
         w_time: result.breakdown.Wt,

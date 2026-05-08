@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   Text,
   StyleSheet,
@@ -22,6 +23,14 @@ type HistoryRecord = {
   blockchainStatus?: string;
 };
 
+type DayBucket = {
+  date: string;
+  readings: HistoryRecord[];
+  totalKwh: number;
+  count: number;
+  confirmedCount: number;
+};
+
 const PLANT_ID = "TTC60011";
 
 function toDateInputValue(date: Date) {
@@ -33,9 +42,65 @@ function formatDisplayDate(date: Date | null) {
   return date.toLocaleDateString();
 }
 
-function formatRecordTime(ts: string) {
-  if (!ts) return "No timestamp";
-  return new Date(ts).toLocaleString();
+function formatDayLabel(ymd: string) {
+  const d = new Date(`${ymd}T12:00:00`);
+  return d.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatTimeOnly(ts: string) {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// Trapezoidal rule, ported from CST2_backend/services/energyConversionService.js.
+// Single reading: assume 0.25h interval.
+function readingsToKwh(readings: HistoryRecord[]): number {
+  if (!readings || readings.length === 0) return 0;
+  if (readings.length === 1) {
+    return (Number(readings[0].solarWatts || 0) * 0.25) / 1000;
+  }
+  const sorted = [...readings].sort(
+    (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime()
+  );
+  let wattHours = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const dtHours =
+      (new Date(sorted[i + 1].ts).getTime() -
+        new Date(sorted[i].ts).getTime()) /
+      3600000;
+    const avgWatts =
+      (Number(sorted[i].solarWatts || 0) +
+        Number(sorted[i + 1].solarWatts || 0)) /
+      2;
+    wattHours += avgWatts * dtHours;
+  }
+  return wattHours / 1000;
+}
+
+function StatusChip({ status }: { status?: string }) {
+  const s = (status || "pending").toLowerCase();
+  let bg = "#c9a227";
+  let label = "⋯ Pending";
+  if (s === "confirmed") {
+    bg = "#32702f";
+    label = "✓ On-chain";
+  } else if (s === "failed") {
+    bg = "#c0392b";
+    label = "✗ Failed";
+  }
+  return (
+    <View style={[styles.chip, { backgroundColor: bg }]}>
+      <Text style={styles.chipText}>{label}</Text>
+    </View>
+  );
 }
 
 export default function ReportsScreen() {
@@ -47,6 +112,7 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const onFromChange = (_: any, selectedDate?: Date) => {
     setShowFromPicker(false);
@@ -58,17 +124,11 @@ export default function ReportsScreen() {
     if (selectedDate) setToDate(selectedDate);
   };
 
-  const loadHistory = async () => {
-    if (!fromDate || !toDate) {
-      setError("Please select both From and To dates.");
-      return;
-    }
-
-    if (fromDate > toDate) {
+  const fetchHistory = async (from: Date, to: Date) => {
+    if (from > to) {
       setError("From date must be before To date.");
       return;
     }
-
     try {
       setLoading(true);
       setError("");
@@ -76,11 +136,12 @@ export default function ReportsScreen() {
 
       const data = await getReadingHistory(
         PLANT_ID,
-        toDateInputValue(fromDate),
-        toDateInputValue(toDate)
+        toDateInputValue(from),
+        toDateInputValue(to)
       );
 
       setRecords(data?.records ?? []);
+      setExpanded({});
     } catch (e) {
       setRecords([]);
       setError(e instanceof Error ? e.message : "Failed to load history");
@@ -89,6 +150,79 @@ export default function ReportsScreen() {
     }
   };
 
+  const loadHistory = async () => {
+    if (!fromDate || !toDate) {
+      setError("Please select both From and To dates.");
+      return;
+    }
+    await fetchHistory(fromDate, toDate);
+  };
+
+  const applyQuickRange = (daysBack: number) => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - daysBack);
+    setFromDate(from);
+    setToDate(to);
+    fetchHistory(from, to);
+  };
+
+  useEffect(() => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 7);
+    setFromDate(from);
+    setToDate(to);
+    fetchHistory(from, to);
+  }, []);
+
+  const buckets = useMemo<DayBucket[]>(() => {
+    const map: Record<string, HistoryRecord[]> = {};
+    for (const r of records) {
+      const key = (r.ts || "").slice(0, 10);
+      if (!key) continue;
+      if (!map[key]) map[key] = [];
+      map[key].push(r);
+    }
+    const result: DayBucket[] = Object.keys(map).map((date) => {
+      const sorted = [...map[date]].sort(
+        (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime()
+      );
+      return {
+        date,
+        readings: sorted,
+        totalKwh: readingsToKwh(sorted),
+        count: sorted.length,
+        confirmedCount: sorted.filter(
+          (r) => (r.blockchainStatus || "").toLowerCase() === "confirmed"
+        ).length,
+      };
+    });
+    result.sort((a, b) => (a.date < b.date ? 1 : -1));
+    return result;
+  }, [records]);
+
+  const summary = useMemo(() => {
+    let totalKwh = 0;
+    let totalReadings = 0;
+    let confirmed = 0;
+    for (const b of buckets) {
+      totalKwh += b.totalKwh;
+      totalReadings += b.count;
+      confirmed += b.confirmedCount;
+    }
+    return { totalKwh, totalReadings, confirmed };
+  }, [buckets]);
+
+  const toggleExpand = (date: string) => {
+    setExpanded((prev) => ({ ...prev, [date]: !prev[date] }));
+  };
+
+  const showEmptyState =
+    hasSearched && !loading && !error && records.length === 0;
+  const showSummary =
+    hasSearched && !loading && !error && summary.totalReadings > 0;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -96,6 +230,30 @@ export default function ReportsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>History Report</Text>
+
+        <View style={styles.quickRow}>
+          <TouchableOpacity
+            style={styles.quickChip}
+            onPress={() => applyQuickRange(0)}
+            disabled={loading}
+          >
+            <Text style={styles.quickChipText}>Today</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickChip}
+            onPress={() => applyQuickRange(7)}
+            disabled={loading}
+          >
+            <Text style={styles.quickChipText}>7 Days</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickChip}
+            onPress={() => applyQuickRange(30)}
+            disabled={loading}
+          >
+            <Text style={styles.quickChipText}>30 Days</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.dateRow}>
           <Text style={styles.label}>From</Text>
@@ -152,44 +310,84 @@ export default function ReportsScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {hasSearched && !loading && !error ? (
-          <Text style={styles.resultSummary}>
-            {records.length} record{records.length === 1 ? "" : "s"} found
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color="#32702f" />
+          </View>
+        ) : null}
+
+        {showSummary ? (
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryTile}>
+              <Text style={styles.summaryValue}>
+                {summary.totalKwh.toFixed(2)}
+              </Text>
+              <Text style={styles.summaryLabel}>Total kWh</Text>
+            </View>
+            <View style={styles.summaryTile}>
+              <Text style={styles.summaryValue}>{summary.totalReadings}</Text>
+              <Text style={styles.summaryLabel}>Readings</Text>
+            </View>
+            <View style={styles.summaryTile}>
+              <Text style={styles.summaryValue}>
+                {summary.confirmed}/{summary.totalReadings}
+              </Text>
+              <Text style={styles.summaryLabel}>Confirmed</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {showEmptyState ? (
+          <Text style={styles.emptyText}>
+            No readings in this date range — try a wider window.
           </Text>
         ) : null}
 
         <View style={styles.recordsList}>
-          {records.map((record) => (
-            <View key={record.id} style={styles.recordCard}>
-              <Text style={styles.recordTime}>{formatRecordTime(record.ts)}</Text>
+          {buckets.map((bucket) => {
+            const isOpen = !!expanded[bucket.date];
+            return (
+              <View key={bucket.date} style={styles.dayCard}>
+                <TouchableOpacity
+                  onPress={() => toggleExpand(bucket.date)}
+                  activeOpacity={0.7}
+                  style={styles.dayHeader}
+                >
+                  <View style={styles.dayHeaderText}>
+                    <Text style={styles.dayDate}>
+                      {formatDayLabel(bucket.date)}
+                    </Text>
+                    <Text style={styles.daySub}>
+                      {bucket.totalKwh.toFixed(2)} kWh • {bucket.count} reading
+                      {bucket.count === 1 ? "" : "s"} • {bucket.confirmedCount}{" "}
+                      confirmed
+                    </Text>
+                  </View>
+                  <MaterialIcons
+                    name={isOpen ? "expand-less" : "expand-more"}
+                    size={26}
+                    color="#ffffff"
+                  />
+                </TouchableOpacity>
 
-              <View style={styles.recordRow}>
-                <Text style={styles.recordLabel}>Power Usage</Text>
-                <Text style={styles.recordValue}>{record.powerUsageWatts} W</Text>
+                {isOpen ? (
+                  <View style={styles.readingsList}>
+                    {bucket.readings.map((r) => (
+                      <View key={r.id} style={styles.readingRow}>
+                        <Text style={styles.readingTime}>
+                          {formatTimeOnly(r.ts)}
+                        </Text>
+                        <Text style={styles.readingWatts}>
+                          {r.solarWatts} W
+                        </Text>
+                        <StatusChip status={r.blockchainStatus} />
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
               </View>
-
-              <View style={styles.recordRow}>
-                <Text style={styles.recordLabel}>Solar</Text>
-                <Text style={styles.recordValue}>{record.solarWatts} W</Text>
-              </View>
-
-              <View style={styles.recordRow}>
-                <Text style={styles.recordLabel}>Grid</Text>
-                <Text style={styles.recordValue}>{record.gridWatts} W</Text>
-              </View>
-
-              <View style={styles.recordRow}>
-                <Text style={styles.recordLabel}>Export</Text>
-                <Text style={styles.recordValue}>{record.exportWatts} W</Text>
-              </View>
-
-              {record.blockchainStatus ? (
-                <Text style={styles.statusText}>
-                  Blockchain: {record.blockchainStatus}
-                </Text>
-              ) : null}
-            </View>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
 
@@ -215,13 +413,33 @@ const styles = StyleSheet.create({
     color: "#32702f",
     fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 40,
+    marginBottom: 24,
+  },
+
+  quickRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 22,
+    gap: 10,
+  },
+
+  quickChip: {
+    backgroundColor: "#1a1a1a",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+
+  quickChipText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   dateRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 28,
+    marginBottom: 18,
     justifyContent: "center",
   },
 
@@ -279,51 +497,122 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  resultSummary: {
-    color: "#333333",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 12,
+  loadingWrap: {
+    paddingVertical: 24,
+  },
+
+  emptyText: {
+    color: "#555",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 16,
+    paddingHorizontal: 12,
+  },
+
+  summaryRow: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    gap: 8,
+  },
+
+  summaryTile: {
+    flex: 1,
+    backgroundColor: "#1a1a1a",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+
+  summaryValue: {
+    color: "#32702f",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+
+  summaryLabel: {
+    color: "#f1f1f1",
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 
   recordsList: {
     width: "100%",
   },
 
-  recordCard: {
+  dayCard: {
     backgroundColor: "#1a1a1a",
     borderRadius: 12,
-    padding: 15,
     marginBottom: 12,
+    overflow: "hidden",
   },
 
-  recordTime: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-
-  recordRow: {
+  dayHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 7,
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 15,
   },
 
-  recordLabel: {
+  dayHeaderText: {
+    flex: 1,
+  },
+
+  dayDate: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  daySub: {
+    color: "#cfcfcf",
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  readingsList: {
+    borderTopWidth: 1,
+    borderTopColor: "#2c2c2c",
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+  },
+
+  readingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#262626",
+  },
+
+  readingTime: {
     color: "#f1f1f1",
     fontSize: 13,
+    width: 80,
   },
 
-  recordValue: {
+  readingWatts: {
     color: "#32702f",
     fontSize: 13,
     fontWeight: "800",
+    flex: 1,
+    textAlign: "center",
   },
 
-  statusText: {
-    color: "#cfcfcf",
-    fontSize: 12,
-    marginTop: 5,
+  chip: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+
+  chipText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "700",
   },
 });
