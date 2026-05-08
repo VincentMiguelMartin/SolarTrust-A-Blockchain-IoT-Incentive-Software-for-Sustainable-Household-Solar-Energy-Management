@@ -1,0 +1,543 @@
+{
+  "runId": "ANOMALY_1778232153661",
+  "timestamp": "2026-05-08T09:22:39.614Z",
+  "testFile": "anomaly-detection.test.js",
+  "results": [
+    {
+      "tcId": "TC-AD-01",
+      "name": "Normal 3500W accepted",
+      "passed": true,
+      "detail": "z=0.58",
+      "durationMs": 203.97
+    },
+    {
+      "tcId": "TC-AD-02",
+      "name": "Negative -50W flagged (physical bounds)",
+      "passed": true,
+      "detail": "Negative wattage reading",
+      "durationMs": 0.09
+    },
+    {
+      "tcId": "TC-AD-03",
+      "name": "99999W exceeds physical max",
+      "passed": true,
+      "detail": "Exceeds physical max (20000W)",
+      "durationMs": 0.07
+    },
+    {
+      "tcId": "TC-AD-04",
+      "name": "12000W flagged as z-score outlier",
+      "passed": true,
+      "detail": "z=43.43",
+      "durationMs": 96.3
+    },
+    {
+      "tcId": "TC-AD-05",
+      "name": "Boundary value (mean + 3*sd) → anomaly (>3 exclusive)",
+      "passed": true,
+      "detail": "val=3981, z=3.0022, threshold=EXCLUSIVE >3",
+      "durationMs": 103.82
+    },
+    {
+      "tcId": "TC-AD-06",
+      "name": "Insufficient history (<5) → graceful accept",
+      "passed": true,
+      "detail": "Insufficient history (3/5)",
+      "durationMs": 302.63
+    },
+    {
+      "tcId": "TC-AD-07",
+      "name": "Zero stddev → no crash, accepts",
+      "passed": true,
+      "detail": "StdDev is 0; Z-Score skipped",
+      "durationMs": 401.84
+    },
+    {
+      "tcId": "TC-AD-08",
+      "name": "0W nighttime → z-score anomaly against daytime baseline",
+      "passed": true,
+      "detail": "z=17.07, reason=Z-Score 17.07 exceeds threshold 3",
+      "durationMs": 94.31
+    },
+    {
+      "tcId": "TC-AD-F1",
+      "name": "F1-Score >= 80%",
+      "passed": true,
+      "detail": "F1=100.0% (P=100.0%, R=100.0%)",
+      "durationMs": 0.07
+    }
+  ],
+  "baseline": {
+    "n": 30,
+    "mean": 3385.5,
+    "sd": 198.35469072682233
+  },
+  "f1Score": {
+    "tp": 20,
+    "fp": 0,
+    "fn": 0,
+    "tn": 30,
+    "precision": 1,
+    "recall": 1,
+    "f1": 1,
+    "threshold": 0.8,
+    "pass": true
+  },
+  "f1Details": [
+    {
+      "solarWatts": 3028,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.8023269260234207
+    },
+    {
+      "solarWatts": 3053,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.676290078049755
+    },
+    {
+      "solarWatts": 3078,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.5502532300760892
+    },
+    {
+      "solarWatts": 3102,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.42925785602137
+    },
+    {
+      "solarWatts": 3127,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.3032210080477042
+    },
+    {
+      "solarWatts": 3152,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.1771841600740385
+    },
+    {
+      "solarWatts": 3176,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.0561887860193193
+    },
+    {
+      "solarWatts": 3201,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.9301519380456535
+    },
+    {
+      "solarWatts": 3225,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.8091565639909344
+    },
+    {
+      "solarWatts": 3250,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.6831197160172685
+    },
+    {
+      "solarWatts": 3275,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.5570828680436027
+    },
+    {
+      "solarWatts": 3299,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.43608749398888363
+    },
+    {
+      "solarWatts": 3324,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.3100506460152178
+    },
+    {
+      "solarWatts": 3349,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.18401379804155205
+    },
+    {
+      "solarWatts": 3373,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.0630184239868329
+    },
+    {
+      "solarWatts": 3398,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.0630184239868329
+    },
+    {
+      "solarWatts": 3422,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.18401379804155205
+    },
+    {
+      "solarWatts": 3447,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.3100506460152178
+    },
+    {
+      "solarWatts": 3472,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.43608749398888363
+    },
+    {
+      "solarWatts": 3496,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.5570828680436027
+    },
+    {
+      "solarWatts": 3521,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.6831197160172685
+    },
+    {
+      "solarWatts": 3546,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.8091565639909344
+    },
+    {
+      "solarWatts": 3570,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 0.9301519380456535
+    },
+    {
+      "solarWatts": 3595,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.0561887860193193
+    },
+    {
+      "solarWatts": 3619,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.1771841600740385
+    },
+    {
+      "solarWatts": 3644,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.3032210080477042
+    },
+    {
+      "solarWatts": 3669,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.42925785602137
+    },
+    {
+      "solarWatts": 3693,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.5502532300760892
+    },
+    {
+      "solarWatts": 3718,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.676290078049755
+    },
+    {
+      "solarWatts": 3743,
+      "category": "normal",
+      "expectedAnomaly": false,
+      "predictedAnomaly": false,
+      "correct": true,
+      "reason": "Within normal range",
+      "zScore": 1.8023269260234207
+    },
+    {
+      "solarWatts": -10,
+      "category": "negative",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Negative wattage reading",
+      "zScore": null
+    },
+    {
+      "solarWatts": -20,
+      "category": "negative",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Negative wattage reading",
+      "zScore": null
+    },
+    {
+      "solarWatts": -30,
+      "category": "negative",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Negative wattage reading",
+      "zScore": null
+    },
+    {
+      "solarWatts": -40,
+      "category": "negative",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Negative wattage reading",
+      "zScore": null
+    },
+    {
+      "solarWatts": -50,
+      "category": "negative",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Negative wattage reading",
+      "zScore": null
+    },
+    {
+      "solarWatts": 25000,
+      "category": "over-capacity",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Exceeds physical max (20000W)",
+      "zScore": null
+    },
+    {
+      "solarWatts": 30000,
+      "category": "over-capacity",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Exceeds physical max (20000W)",
+      "zScore": null
+    },
+    {
+      "solarWatts": 35000,
+      "category": "over-capacity",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Exceeds physical max (20000W)",
+      "zScore": null
+    },
+    {
+      "solarWatts": 40000,
+      "category": "over-capacity",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Exceeds physical max (20000W)",
+      "zScore": null
+    },
+    {
+      "solarWatts": 45000,
+      "category": "over-capacity",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Exceeds physical max (20000W)",
+      "zScore": null
+    },
+    {
+      "solarWatts": 4179,
+      "category": "z-high",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 4.00 exceeds threshold 3",
+      "zScore": 4.000409554684152
+    },
+    {
+      "solarWatts": 4377,
+      "category": "z-high",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 5.00 exceeds threshold 3",
+      "zScore": 4.998621390635585
+    },
+    {
+      "solarWatts": 4576,
+      "category": "z-high",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 6.00 exceeds threshold 3",
+      "zScore": 6.001874700505964
+    },
+    {
+      "solarWatts": 4774,
+      "category": "z-high",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 7.00 exceeds threshold 3",
+      "zScore": 7.000086536457398
+    },
+    {
+      "solarWatts": 4972,
+      "category": "z-high",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 8.00 exceeds threshold 3",
+      "zScore": 7.998298372408831
+    },
+    {
+      "solarWatts": 2592,
+      "category": "z-low",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 4.00 exceeds threshold 3",
+      "zScore": 4.000409554684152
+    },
+    {
+      "solarWatts": 2394,
+      "category": "z-low",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 5.00 exceeds threshold 3",
+      "zScore": 4.998621390635585
+    },
+    {
+      "solarWatts": 2195,
+      "category": "z-low",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 6.00 exceeds threshold 3",
+      "zScore": 6.001874700505964
+    },
+    {
+      "solarWatts": 1997,
+      "category": "z-low",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 7.00 exceeds threshold 3",
+      "zScore": 7.000086536457398
+    },
+    {
+      "solarWatts": 1799,
+      "category": "z-low",
+      "expectedAnomaly": true,
+      "predictedAnomaly": true,
+      "correct": true,
+      "reason": "Z-Score 8.00 exceeds threshold 3",
+      "zScore": 7.998298372408831
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0
+  }
+}

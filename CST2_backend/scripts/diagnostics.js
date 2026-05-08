@@ -194,14 +194,20 @@ async function main() {
 
   // ── CHECK 9: Reward Formula Check ─────────────────────────
   await runCheck(9, "Reward Formula Check", async () => {
-    const reward = computeReward(50);
-    if (reward === undefined || reward === null) {
-      throw new Error("computeReward returned undefined/null");
+    const result = computeReward({
+      energySavedKwh: 50,
+      baselineKwh: null,
+      networkDemandKw: 0,
+      networkCapacityKw: 1,
+      timestamp: new Date().toISOString(),
+    });
+    if (!result || typeof result.reward !== "number") {
+      throw new Error(`computeReward returned invalid result: ${JSON.stringify(result)}`);
     }
-    if (typeof reward !== "number" || reward <= 0) {
-      throw new Error(`Expected positive number, got: ${reward}`);
+    if (!Number.isFinite(result.reward) || result.reward <= 0) {
+      throw new Error(`Expected positive finite reward, got: ${result.reward}`);
     }
-    return `computeReward(50) = ${reward}`;
+    return `reward=${result.reward}, Wt=${result.breakdown.Wt}, Wn=${result.breakdown.Wn}, Wb=${result.breakdown.Wb}`;
   });
 
   // ── CHECK 10: End-to-End Pipeline Simulation ──────────────

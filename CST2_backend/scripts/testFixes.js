@@ -171,7 +171,9 @@ async function testDashboardReturnsStats() {
   assert(typeof body.totalVerifiedEnergyWatts === "number", "totalVerifiedEnergyWatts must be a number");
   assert(typeof body.totalConfirmedReadings === "number", "totalConfirmedReadings must be a number");
   assert(typeof body.totalGameSessions === "number", "totalGameSessions must be a number");
-  assert(body.rewardPoints === body.totalVerifiedEnergyWatts * 2, "rewardPoints must equal totalVerifiedEnergyWatts * 2");
+  assert(typeof body.rewardPoints === "number", "rewardPoints must be a number");
+  assert(Number.isFinite(body.rewardPoints), "rewardPoints must be finite");
+  assert(body.rewardPoints >= 0, "rewardPoints must be non-negative");
   return `energy=${body.totalVerifiedEnergyWatts}W, readings=${body.totalConfirmedReadings}, games=${body.totalGameSessions}, points=${body.rewardPoints}`;
 }
 

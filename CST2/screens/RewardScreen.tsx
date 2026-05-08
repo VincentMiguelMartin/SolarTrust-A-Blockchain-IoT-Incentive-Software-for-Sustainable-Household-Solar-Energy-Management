@@ -1,17 +1,99 @@
-import React, { useContext } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
-import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
 import FloatingBackButton from "../components/FloatingBackButton";
 import { AuthContext } from "../context/AuthContext";
 
-export default function GameScreen({ navigation }: any) {
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
+const BASE_URL = API_BASE_URL.replace(/\/+$/, "");
+const HOUSEHOLD_ID = process.env.EXPO_PUBLIC_HOUSEHOLD_ID || "TTC60011";
+
+type RewardRow = {
+  id?: string;
+  batch_id?: string | null;
+  energy_saved_kwh?: number | string | null;
+  baseline_kwh?: number | string | null;
+  w_time?: number | string | null;
+  w_network?: number | string | null;
+  w_behavior?: number | string | null;
+  reward_points?: number | string | null;
+  computed_at?: string | null;
+};
+
+type RewardsResponse = {
+  householdId: string;
+  totalPoints: number;
+  history: RewardRow[];
+};
+
+function toNumber(value: number | string | null | undefined) {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "Pending timestamp";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+export default function RewardScreen({ navigation }: any) {
   const { role } = useContext(AuthContext);
   const homeRoute = role === "admin" ? "AdminDashboard" : "UserDashboard";
+  const [rewardData, setRewardData] = useState<RewardsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadRewards = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/rewards/${encodeURIComponent(HOUSEHOLD_ID)}`
+      );
+      const body = await res.json();
+
+      if (!res.ok) {
+        throw new Error(body?.error || `Rewards request failed: ${res.status}`);
+      }
+
+      setRewardData({
+        householdId: body.householdId || HOUSEHOLD_ID,
+        totalPoints: toNumber(body.totalPoints),
+        history: Array.isArray(body.history) ? body.history : [],
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setRewardData(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRewards();
+  }, [loadRewards]);
 
   return (
     <SafeAreaView style={styles.container}>
-
-      {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
          style={styles.iconButton}
@@ -30,18 +112,84 @@ export default function GameScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      
-      {/* Title */}
       <Text style={styles.title}>Rewards!</Text>
 
-      {/* Placeholder message instead of grid */}
-      <View style={styles.content}>
-        <Text style={styles.subtitle}>
-          Rewards will be displayed here soon
-        </Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadRewards(true)}
+            tintColor="#32702f"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {loading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator size="large" color="#32702f" />
+          </View>
+        ) : error ? (
+          <View style={styles.stateCard}>
+            <MaterialIcons name="error-outline" size={32} color="#a83232" />
+            <Text style={styles.stateTitle}>Unable to load rewards</Text>
+            <Text style={styles.stateText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => loadRewards()}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View style={styles.summaryCard}>
+              <Text style={styles.cardLabel}>Verified Reward Balance</Text>
+              <Text style={styles.pointsValue}>
+                {(rewardData?.totalPoints ?? 0).toFixed(2)}
+              </Text>
+              <Text style={styles.pointsLabel}>points</Text>
+              <View style={styles.householdRow}>
+                <MaterialIcons name="solar-power" size={18} color="#32702f" />
+                <Text style={styles.householdText}>
+                  Household {rewardData?.householdId || HOUSEHOLD_ID}
+                </Text>
+              </View>
+            </View>
 
-      {/* Done Button */}
+            <View style={styles.historyHeader}>
+              <Text style={styles.sectionTitle}>Recent Rewards</Text>
+              <Text style={styles.historyCount}>
+                {rewardData?.history.length ?? 0}
+              </Text>
+            </View>
+
+            {rewardData?.history.length ? (
+              rewardData.history.map((item, index) => (
+                <View style={styles.rewardRow} key={item.id || item.batch_id || index}>
+                  <View style={styles.rewardIcon}>
+                    <MaterialIcons name="verified" size={20} color="#32702f" />
+                  </View>
+                  <View style={styles.rewardDetails}>
+                    <Text style={styles.rewardDate}>
+                      {formatDate(item.computed_at)}
+                    </Text>
+                    <Text style={styles.rewardMeta}>
+                      {toNumber(item.energy_saved_kwh).toFixed(3)} kWh saved
+                    </Text>
+                  </View>
+                  <Text style={styles.rewardPoints}>
+                    +{toNumber(item.reward_points).toFixed(2)}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="hourglass-empty" size={28} color="#666" />
+                <Text style={styles.emptyText}>No confirmed rewards yet</Text>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+
       <View style={{ marginBottom: 80 }}>
         <TouchableOpacity
          style={styles.homeButton}
@@ -51,7 +199,6 @@ export default function GameScreen({ navigation }: any) {
       </TouchableOpacity>
 
       </View>
-      {/* Floating Back Button (under Done) */}
       <FloatingBackButton />
 
     </SafeAreaView>
@@ -88,14 +235,174 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    flex: 1, // pushes bottomSection down
-    justifyContent: "center",
-    paddingHorizontal: 30,
+    paddingHorizontal: 4,
+    paddingTop: 10,
+    paddingBottom: 30,
   },
 
-  subtitle: {
-    color: "#000",
+  centerState: {
+    minHeight: 260,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  stateCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 18,
+    alignItems: "center",
+    elevation: 2,
+  },
+
+  stateTitle: {
+    color: "#1f1f1f",
+    fontSize: 16,
+    fontWeight: "800",
+    marginTop: 10,
+    marginBottom: 6,
+  },
+
+  stateText: {
+    color: "#333",
     textAlign: "center",
+    marginBottom: 14,
+  },
+
+  retryButton: {
+    backgroundColor: "#32702f",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+
+  retryText: {
+    color: "#fff",
+    fontWeight: "800",
+  },
+
+  summaryCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 18,
+    elevation: 3,
+    marginBottom: 18,
+  },
+
+  cardLabel: {
+    color: "#555",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+
+  pointsValue: {
+    color: "#32702f",
+    fontSize: 42,
+    fontWeight: "900",
+  },
+
+  pointsLabel: {
+    color: "#1f1f1f",
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 16,
+  },
+
+  householdRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e7f6e6",
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+
+  householdText: {
+    color: "#1f1f1f",
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+
+  historyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+
+  sectionTitle: {
+    color: "#1f1f1f",
+    fontSize: 17,
+    fontWeight: "800",
+  },
+
+  historyCount: {
+    minWidth: 28,
+    textAlign: "center",
+    color: "#32702f",
+    fontWeight: "900",
+    backgroundColor: "#e7f6e6",
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+
+  rewardRow: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    elevation: 2,
+  },
+
+  rewardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: "#e7f6e6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+
+  rewardDetails: {
+    flex: 1,
+  },
+
+  rewardDate: {
+    color: "#1f1f1f",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 3,
+  },
+
+  rewardMeta: {
+    color: "#555",
+    fontSize: 12,
+  },
+
+  rewardPoints: {
+    color: "#32702f",
+    fontSize: 16,
+    fontWeight: "900",
+    marginLeft: 10,
+  },
+
+  emptyState: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 22,
+    alignItems: "center",
+    elevation: 2,
+  },
+
+  emptyText: {
+    color: "#333",
+    fontWeight: "700",
+    marginTop: 8,
   },
 
     homeButton: {
