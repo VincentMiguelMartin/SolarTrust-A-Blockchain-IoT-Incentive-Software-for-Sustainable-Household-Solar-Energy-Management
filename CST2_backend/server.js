@@ -50,6 +50,84 @@ app.get("/test", (req, res) => {
   });
 });
 
+// Resolve the logged-in user's app role.
+const getAuthRole = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Missing bearer token" });
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(
+      token
+    );
+
+    if (authError || !authData?.user) {
+      return res.status(401).json({
+        error: authError?.message || "Invalid session",
+      });
+    }
+
+    const user = authData.user;
+    let profileRole = null;
+
+    const { data: profileById } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    profileRole = profileById?.role ?? null;
+
+    if (!profileRole) {
+      const { data: profileByUserId } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      profileRole = profileByUserId?.role ?? null;
+    }
+
+    if (!profileRole && user.email) {
+      const { data: profileByEmail } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      profileRole = profileByEmail?.role ?? null;
+    }
+
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
+    const emailRole = adminEmails.includes(String(user.email).toLowerCase())
+      ? "admin"
+      : null;
+
+    const storedRole =
+      profileRole ||
+      user.user_metadata?.role ||
+      user.app_metadata?.role ||
+      emailRole;
+    const role =
+      String(storedRole).trim().toLowerCase() === "admin" ? "admin" : "user";
+
+    res.json({ role });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+};
+
+app.get("/auth/role", getAuthRole);
+app.get("/api/auth/role", getAuthRole);
+
 // DB connection test
 app.get("/db-test", async (req, res) => {
   try {
@@ -163,6 +241,70 @@ app.get("/energy/sync/:plantId", async (req, res) => {
     });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
+  }
+});
+
+// GET /readings/history/:plantId?from=YYYY-MM-DD&to=YYYY-MM-DD
+app.get("/readings/history/:plantId", async (req, res) => {
+  try {
+    const { plantId } = req.params;
+    const { from, to } = req.query;
+
+    if (!plantId || !from || !to) {
+      return res.status(400).json({
+        error: "plantId, from, and to are required",
+      });
+    }
+
+    const fromDate = new Date(`${from}T00:00:00.000Z`);
+    const toDate = new Date(`${to}T23:59:59.999Z`);
+
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      return res.status(400).json({ error: "Invalid from/to date" });
+    }
+
+    if (fromDate > toDate) {
+      return res.status(400).json({ error: "from date must be before to date" });
+    }
+
+    const { data, error } = await supabase
+      .from("readings")
+      .select("id, household_id, ts, solar_watts, grid_watts, export_watts, blockchain_status")
+      .eq("household_id", plantId)
+      .gte("ts", fromDate.toISOString())
+      .lte("ts", toDate.toISOString())
+      .order("ts", { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    const records = (data || []).map((row) => {
+      const solarWatts = Number(row.solar_watts ?? 0);
+      const gridWatts = Number(row.grid_watts ?? 0);
+      const exportWatts = Number(row.export_watts ?? 0);
+
+      return {
+        id: row.id,
+        plantId: row.household_id,
+        ts: row.ts,
+        solarWatts,
+        gridWatts,
+        exportWatts,
+        powerUsageWatts: Math.max(0, solarWatts + gridWatts - exportWatts),
+        blockchainStatus: row.blockchain_status,
+      };
+    });
+
+    res.json({
+      plantId,
+      from,
+      to,
+      count: records.length,
+      records,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
   }
 });
 

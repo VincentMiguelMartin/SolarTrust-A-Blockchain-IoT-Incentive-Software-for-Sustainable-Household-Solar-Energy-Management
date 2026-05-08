@@ -6,7 +6,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet
+  StyleSheet,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -22,7 +22,6 @@ export default function RegisterScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleRegister = async () => {
-
     if (!name || !email || !password || !confirm) {
       alert("Please fill up all fields");
       return;
@@ -33,13 +32,13 @@ export default function RegisterScreen() {
       return;
     }
 
-    // 🔥 CREATE AUTH ACCOUNT (with name in metadata)
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password: password.trim(),
       options: {
         data: {
-          name: name.trim(),   // ✅ SAVE NAME HERE
+          name: name.trim(),
+          role: "user",
         },
       },
     });
@@ -47,23 +46,6 @@ export default function RegisterScreen() {
     if (error) {
       alert(error.message);
       return;
-    }
-
-    // 🔥 CREATE PROFILE RECORD (optional but recommended)
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert([
-          {
-            id: data.user.id,
-            full_name: name.trim(),
-            email: email.trim(),
-          },
-        ]);
-
-      if (profileError) {
-        console.log("Profile insert error:", profileError.message);
-      }
     }
 
     alert("Account successfully created!");
@@ -74,7 +56,6 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Create account</Text>
 
-      {/* NAME */}
       <View style={styles.inputBox}>
         <MaterialIcons name="person" size={24} color="black" />
         <TextInput
@@ -86,7 +67,6 @@ export default function RegisterScreen() {
         />
       </View>
 
-      {/* EMAIL */}
       <View style={styles.inputBox}>
         <MaterialIcons name="email" size={24} color="black" />
         <TextInput
@@ -100,7 +80,6 @@ export default function RegisterScreen() {
         />
       </View>
 
-      {/* PASSWORD */}
       <View style={styles.inputBox}>
         <MaterialIcons name="lock" size={24} color="black" />
         <TextInput
@@ -120,7 +99,6 @@ export default function RegisterScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* CONFIRM PASSWORD */}
       <View style={styles.inputBox}>
         <MaterialIcons name="lock" size={24} color="black" />
         <TextInput
@@ -140,12 +118,10 @@ export default function RegisterScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* REGISTER BUTTON */}
       <TouchableOpacity style={styles.registerBtn} onPress={handleRegister}>
         <Text style={styles.registerText}>Register</Text>
       </TouchableOpacity>
 
-      {/* BACK TO LOGIN */}
       <TouchableOpacity onPress={() => navigation.goBack()}>
         <Text style={styles.back}>BACK TO LOGIN</Text>
       </TouchableOpacity>
@@ -158,14 +134,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#ebeaea",
     paddingHorizontal: 25,
-    paddingTop: 60
+    paddingTop: 60,
   },
 
   title: {
     color: "#32702f",
     fontSize: 30,
     fontWeight: "bold",
-    marginBottom: 30
+    marginBottom: 30,
   },
 
   inputBox: {
@@ -175,14 +151,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 14,
     height: 55,
-    marginBottom: 15
+    marginBottom: 15,
   },
 
   input: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
-    color: "#000"
+    color: "#000",
   },
 
   registerBtn: {
@@ -191,13 +167,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 15
+    marginTop: 15,
   },
 
   registerText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#FFF"
+    color: "#FFF",
   },
 
   back: {
@@ -205,6 +181,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 25,
     fontWeight: "bold",
-    letterSpacing: 1
-  }
+    letterSpacing: 1,
+  },
 });

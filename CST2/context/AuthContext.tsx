@@ -8,10 +8,14 @@ export type User = {
   password: string;
 };
 
+export type UserRole = "admin" | "user";
+
 /* ================= CONTEXT TYPE ================= */
 
 type AuthContextType = {
   user: User | null;
+  role: UserRole;
+  setRole: (role: UserRole) => void;
   register: (name: string, email: string, password: string) => void;
   login: (email: string, password: string) => boolean;
   logout: () => void;
@@ -33,6 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // currently logged-in user
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [role, setRole] = useState<UserRole>("user");
 
   /* ---------- REGISTER ---------- */
   const register = (name: string, email: string, password: string) => {
@@ -66,6 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /* ---------- LOGOUT ---------- */
   const logout = () => {
     setCurrentUser(null);
+    setRole("user");
   };
 
   /* ---------- UPDATE ACCOUNT ---------- */
@@ -105,6 +111,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user: currentUser,   // IMPORTANT: screens still use "user"
+        role,
+        setRole,
         register,
         login,
         logout,

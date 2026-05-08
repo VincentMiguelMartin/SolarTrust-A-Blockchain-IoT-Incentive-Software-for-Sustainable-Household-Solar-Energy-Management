@@ -1,9 +1,13 @@
-import React from "react";
+import React, { useContext } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import FloatingBackButton from "../components/FloatingBackButton";
+import { AuthContext } from "../context/AuthContext";
 
 export default function GameScreen({ navigation }: any) {
+  const { role } = useContext(AuthContext);
+  const homeRoute = role === "admin" ? "AdminDashboard" : "UserDashboard";
+
   return (
     <SafeAreaView style={styles.container}>
 
@@ -41,7 +45,7 @@ export default function GameScreen({ navigation }: any) {
       <View style={{ marginBottom: 80 }}>
         <TouchableOpacity
          style={styles.homeButton}
-         onPress={() => navigation.replace("Dashboard")}
+         onPress={() => navigation.replace(homeRoute)}
       >
         <Text style={styles.homeText}>Home</Text>
       </TouchableOpacity>

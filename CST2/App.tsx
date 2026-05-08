@@ -9,12 +9,14 @@ import NotificationsScreen from "./screens/NotificationsScreen";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import DashboardScreen from "./screens/DashboardScreen";
+import UserDashboardScreen from "./screens/UserDashboardScreen";
 import MenuScreen from "./screens/MenuScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import ReportsScreen from "./screens/ReportsScreen";
 import AboutScreen from "./screens/AboutScreen";
 import StatisticsScreen from "./screens/StatisticsScreen";
 import { AuthProvider } from "./context/AuthContext";
+import { EnergyProvider } from "./context/EnergyContext";
 import { useEffect } from "react";
 
 
@@ -22,6 +24,8 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Dashboard: undefined;
+  AdminDashboard: undefined;
+  UserDashboard: undefined;
   Menu: undefined;
   Settings: undefined;
   Reports: undefined;
@@ -61,24 +65,28 @@ export default function App() {
   return (
     <NavigationContainer>
       <AuthProvider>
-        <Stack.Navigator
-          id="MainStack"
-          initialRouteName="Login"
-          screenOptions={{ headerShown: false }}
-        >
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-          <Stack.Screen name="Game" component={GameScreen} />
-          <Stack.Screen name="Reward" component={RewardScreen} />
-          <Stack.Screen name="Menu" component={MenuScreen} />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
-          <Stack.Screen name="Reports" component={ReportsScreen} />
-          <Stack.Screen name="About" component={AboutScreen} />
-          <Stack.Screen name="Store" component={StoreScreen} />
-          <Stack.Screen name="Notifications" component={NotificationsScreen} />
-          <Stack.Screen name="Statistics" component={StatisticsScreen} />
-        </Stack.Navigator>
+        <EnergyProvider>
+          <Stack.Navigator
+            id="MainStack"
+            initialRouteName="Login"
+            screenOptions={{ headerShown: false }}
+          >
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="AdminDashboard" component={DashboardScreen} />
+            <Stack.Screen name="UserDashboard" component={UserDashboardScreen} />
+            <Stack.Screen name="Game" component={GameScreen} />
+            <Stack.Screen name="Reward" component={RewardScreen} />
+            <Stack.Screen name="Menu" component={MenuScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="Reports" component={ReportsScreen} />
+            <Stack.Screen name="About" component={AboutScreen} />
+            <Stack.Screen name="Store" component={StoreScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Statistics" component={StatisticsScreen} />
+          </Stack.Navigator>
+        </EnergyProvider>
       </AuthProvider>
     </NavigationContainer>
   );
