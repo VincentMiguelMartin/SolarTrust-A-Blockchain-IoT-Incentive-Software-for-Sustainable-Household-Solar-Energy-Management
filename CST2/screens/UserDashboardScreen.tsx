@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -41,6 +42,8 @@ const reportStyleByLevel = {
   warning: "warningReport",
   urgent: "urgentReport",
 } as const;
+
+const userPlant = { id: "TTC60011", name: "Taneko" };
 
 function mean(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -214,6 +217,24 @@ export default function UserDashboardScreen({ navigation }: Props) {
 
         <Text style={styles.details}>Click the Graph for Statistics Tab</Text>
 
+        <View style={styles.plantSelector}>
+          <View style={styles.plantDisplay}>
+            <View style={styles.plantTextGroup}>
+              <Text style={styles.plantLabel}>Current Plant</Text>
+              <Text style={styles.plantName}>{userPlant.name}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.plantInfoButton}
+              activeOpacity={0.85}
+              onPress={() =>
+                Alert.alert(userPlant.name, `Plant ID: ${userPlant.id}`)
+              }
+            >
+              <MaterialIcons name="info-outline" size={22} color="#32702f" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.reportBoard}>
           <Text style={styles.reportTitle}>Anomaly Detection Reports</Text>
 
@@ -385,6 +406,48 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: -4,
     marginBottom: 18,
+  },
+
+  plantSelector: {
+    marginBottom: 18,
+  },
+
+  plantDisplay: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    elevation: 2,
+  },
+
+  plantTextGroup: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  plantLabel: {
+    color: "#555555",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 3,
+  },
+
+  plantName: {
+    color: "#1f1f1f",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  plantInfoButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: "#f1f1f1",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   reportBoard: {

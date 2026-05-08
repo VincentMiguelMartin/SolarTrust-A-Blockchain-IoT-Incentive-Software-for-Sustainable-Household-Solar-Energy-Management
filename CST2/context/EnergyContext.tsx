@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { syncEnergy } from "../services/apiService.js";
 
-const PLANT_ID = "TTC60011";
+const DEFAULT_PLANT_ID = "TTC60011";
 const ENERGY_UPDATE_INTERVAL_MS = 300000;
 
 type EnergyReading = {
@@ -22,6 +22,8 @@ type EnergyReading = {
 };
 
 type EnergyContextType = {
+  selectedPlantId: string;
+  setSelectedPlantId: (plantId: string) => void;
   reading: EnergyReading;
   powerHistory: number[];
   usageHistory: number[];
@@ -45,6 +47,7 @@ const defaultReading: EnergyReading = {
 const EnergyContext = createContext<EnergyContextType>({} as EnergyContextType);
 
 export function EnergyProvider({ children }: { children: ReactNode }) {
+  const [selectedPlantId, setSelectedPlantId] = useState(DEFAULT_PLANT_ID);
   const [reading, setReading] = useState<EnergyReading>(defaultReading);
   const [powerHistory, setPowerHistory] = useState<number[]>([]);
   const [usageHistory, setUsageHistory] = useState<number[]>([]);
@@ -62,10 +65,10 @@ export function EnergyProvider({ children }: { children: ReactNode }) {
       const base =
         process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
 
-      setDebugUrl(`${base}/energy/sync/${PLANT_ID}`);
+      setDebugUrl(`${base}/energy/sync/${selectedPlantId}`);
       setDebugState("loading");
 
-      const data = await syncEnergy(PLANT_ID);
+      const data = await syncEnergy(selectedPlantId);
       const energy = data?.reading ?? {};
 
       const solarRaw = Number(energy.solarWatts ?? 0);
@@ -109,7 +112,16 @@ export function EnergyProvider({ children }: { children: ReactNode }) {
       setError(e instanceof Error ? e.message : "Failed to load energy");
       setDebugState("failed");
     }
-  }, []);
+  }, [selectedPlantId]);
+
+  useEffect(() => {
+    setReading(defaultReading);
+    setPowerHistory([]);
+    setUsageHistory([]);
+    setLastUpdate("");
+    setError("");
+    setRawData(null);
+  }, [selectedPlantId]);
 
   const registerEnergyConsumer = useCallback(() => {
     consumerCountRef.current += 1;
@@ -139,6 +151,8 @@ export function EnergyProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      selectedPlantId,
+      setSelectedPlantId,
       reading,
       powerHistory,
       usageHistory,
@@ -151,6 +165,7 @@ export function EnergyProvider({ children }: { children: ReactNode }) {
       registerEnergyConsumer,
     }),
     [
+      selectedPlantId,
       reading,
       powerHistory,
       usageHistory,

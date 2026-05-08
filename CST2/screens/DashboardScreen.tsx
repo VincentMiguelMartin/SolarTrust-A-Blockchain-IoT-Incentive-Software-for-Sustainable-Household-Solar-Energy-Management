@@ -3,9 +3,11 @@ import {
   SafeAreaView,
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -41,6 +43,10 @@ const reportStyleByLevel = {
   warning: "warningReport",
   urgent: "urgentReport",
 } as const;
+
+const initialAdminPlants = [
+  { id: "TTC60011", name: "Taneko" },
+];
 
 function getReportLevel(severity: unknown): AnomalyLevel {
   const value = String(severity ?? "").toLowerCase();
@@ -178,6 +184,8 @@ function buildAnomalyReports(
 export default function DashboardScreen({ navigation }: Props) {
   const screenWidth = Dimensions.get("window").width;
   const {
+    selectedPlantId,
+    setSelectedPlantId,
     reading,
     powerHistory,
     lastUpdate,
@@ -192,6 +200,39 @@ export default function DashboardScreen({ navigation }: Props) {
   const [selectedReport, setSelectedReport] = useState<AnomalyReport | null>(
     null
   );
+  const [adminPlants, setAdminPlants] = useState(initialAdminPlants);
+  const [showPlantDropdown, setShowPlantDropdown] = useState(false);
+  const [showAddPlantForm, setShowAddPlantForm] = useState(false);
+  const [newPlantId, setNewPlantId] = useState("");
+  const selectedPlant =
+    adminPlants.find((plant) => plant.id === selectedPlantId) ?? adminPlants[0];
+
+  useEffect(() => {
+    setAdminPlants((current) =>
+      current.map((plant) =>
+        plant.id === "TTC60011" ? { ...plant, name: "Taneko" } : plant
+      )
+    );
+  }, []);
+
+  const handleAddPlant = () => {
+    const plantId = newPlantId.trim();
+
+    if (!plantId) {
+      return;
+    }
+
+    if (!adminPlants.some((plant) => plant.id === plantId)) {
+      setAdminPlants((current) => [
+        ...current,
+        { id: plantId, name: `Plant ${current.length + 1}` },
+      ]);
+    }
+
+    setSelectedPlantId(plantId);
+    setNewPlantId("");
+    setShowAddPlantForm(false);
+  };
 
   useEffect(() => {
     if (error) {
@@ -321,6 +362,126 @@ export default function DashboardScreen({ navigation }: Props) {
 
         <Text style={styles.details}>Click the Graph to view full details!</Text>
 
+        {showAddPlantForm ? (
+          <View style={styles.addPlantForm}>
+            <Text style={styles.addPlantTitle}>Add New Plant</Text>
+            <TextInput
+              style={styles.plantInput}
+              placeholder="Plant ID"
+              placeholderTextColor="#777777"
+              value={newPlantId}
+              onChangeText={setNewPlantId}
+              autoCapitalize="characters"
+            />
+
+            <View style={styles.addPlantActions}>
+              <TouchableOpacity
+                style={styles.backPlantButton}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setNewPlantId("");
+                  setShowAddPlantForm(false);
+                }}
+              >
+                <MaterialIcons name="arrow-back" size={20} color="#32702f" />
+                <Text style={styles.backPlantText}>Back</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.savePlantButton,
+                  !newPlantId.trim() ? styles.disabledPlantButton : null,
+                ]}
+                activeOpacity={0.85}
+                disabled={!newPlantId.trim()}
+                onPress={handleAddPlant}
+              >
+                <Text style={styles.savePlantText}>Add Plant</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.plantSelector}>
+            <View style={styles.plantSelectorActions}>
+              <TouchableOpacity
+                style={styles.plantSelectButton}
+                activeOpacity={0.8}
+                onPress={() => setShowPlantDropdown((current) => !current)}
+              >
+                <View style={styles.plantSelectText}>
+                  <Text style={styles.plantSelectLabel}>Current Plant</Text>
+                  <Text style={styles.plantSelectValue}>
+                    {selectedPlant.name}
+                  </Text>
+                </View>
+                <MaterialIcons
+                  name={
+                    showPlantDropdown
+                      ? "keyboard-arrow-up"
+                      : "keyboard-arrow-down"
+                  }
+                  size={26}
+                  color="#32702f"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.plantInfoButton}
+                activeOpacity={0.85}
+                onPress={() =>
+                  Alert.alert(
+                    selectedPlant.name,
+                    `Plant ID: ${selectedPlant.id}`
+                  )
+                }
+              >
+                <MaterialIcons name="info-outline" size={22} color="#32702f" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.addPlantButton}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setShowPlantDropdown(false);
+                  setShowAddPlantForm(true);
+                }}
+              >
+                <MaterialIcons name="add" size={22} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+
+            {showPlantDropdown ? (
+              <View style={styles.plantDropdown}>
+                {adminPlants.map((plant) => {
+                  const active = plant.id === selectedPlantId;
+
+                  return (
+                    <TouchableOpacity
+                      key={plant.id}
+                      style={[
+                        styles.plantOption,
+                        active ? styles.activePlantOption : null,
+                      ]}
+                      activeOpacity={0.75}
+                      onPress={() => {
+                        setSelectedPlantId(plant.id);
+                        setShowPlantDropdown(false);
+                      }}
+                    >
+                      <View>
+                        <Text style={styles.plantOptionName}>{plant.name}</Text>
+                      </View>
+                      {active ? (
+                        <MaterialIcons name="check" size={22} color="#32702f" />
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : null}
+          </View>
+        )}
+
         <View style={styles.reportBoard}>
           <Text style={styles.reportTitle}>Anomaly Detection Reports</Text>
 
@@ -413,6 +574,168 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "bold",
     marginBottom: 20,
+  },
+
+  plantSelector: {
+    marginBottom: 18,
+  },
+
+  plantSelectorActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  plantSelectButton: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    elevation: 2,
+  },
+
+  plantSelectText: {
+    flex: 1,
+    paddingRight: 8,
+  },
+
+  plantSelectLabel: {
+    color: "#555555",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 3,
+  },
+
+  plantSelectValue: {
+    color: "#1f1f1f",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  addPlantButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: "#32702f",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+    elevation: 2,
+  },
+
+  plantInfoButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+    elevation: 2,
+  },
+
+  addPlantForm: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 18,
+    elevation: 2,
+  },
+
+  addPlantTitle: {
+    color: "#1f1f1f",
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 12,
+  },
+
+  plantInput: {
+    backgroundColor: "#f1f1f1",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 48,
+    color: "#1f1f1f",
+    fontSize: 15,
+    marginBottom: 12,
+  },
+
+  addPlantActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  backPlantButton: {
+    height: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#32702f",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  backPlantText: {
+    color: "#32702f",
+    fontSize: 14,
+    fontWeight: "800",
+    marginLeft: 6,
+  },
+
+  savePlantButton: {
+    height: 46,
+    borderRadius: 8,
+    backgroundColor: "#32702f",
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  disabledPlantButton: {
+    backgroundColor: "#9fb59d",
+  },
+
+  savePlantText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  plantDropdown: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    marginTop: 8,
+    overflow: "hidden",
+    elevation: 2,
+  },
+
+  plantOption: {
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eeeeee",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  activePlantOption: {
+    backgroundColor: "#e7f6e6",
+  },
+
+  plantOptionName: {
+    color: "#1f1f1f",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  plantOptionId: {
+    color: "#555555",
+    fontSize: 12,
+    marginTop: 2,
   },
 
   card: {
