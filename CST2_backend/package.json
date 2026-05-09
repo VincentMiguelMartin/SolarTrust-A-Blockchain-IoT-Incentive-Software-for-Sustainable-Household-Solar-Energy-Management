@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test:blackbox": "jest --config tests/blackbox/jest.config.js"
+    "test:blackbox": "jest --config tests/blackbox/jest.config.js",
+    "inject:anomalies": "node scripts/injectAnomalies.js"
   },
   "keywords": [],
   "author": "",

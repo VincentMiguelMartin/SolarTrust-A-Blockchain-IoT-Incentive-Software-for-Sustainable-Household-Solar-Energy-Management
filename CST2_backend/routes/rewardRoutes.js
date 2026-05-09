@@ -88,23 +88,42 @@ router.get("/:householdId", async (req, res) => {
   try {
     const { householdId } = req.params;
 
-    const { data, error } = await supabase
-      .from("rewards")
-      .select("*")
-      .eq("household_id", householdId)
-      .order("computed_at", { ascending: false });
+    const [allRes, recentRes] = await Promise.all([
+      supabase
+        .from("rewards")
+        .select("reward_points")
+        .eq("household_id", householdId),
+      supabase
+        .from("rewards")
+        .select("batch_id, reward_points, energy_saved_kwh, computed_at")
+        .eq("household_id", householdId)
+        .order("computed_at", { ascending: false })
+        .limit(20),
+    ]);
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (allRes.error) {
+      return res.status(500).json({ error: allRes.error.message });
+    }
+    if (recentRes.error) {
+      return res.status(500).json({ error: recentRes.error.message });
+    }
 
-    const totalPoints = (data || []).reduce(
+    const totalPoints = (allRes.data || []).reduce(
       (s, r) => s + (Number(r.reward_points) || 0),
       0
     );
 
+    const rewardHistory = (recentRes.data || []).map((r) => ({
+      batchId: r.batch_id,
+      rewardPoints: Number(r.reward_points) || 0,
+      energySavedKwh: Number(r.energy_saved_kwh) || 0,
+      createdAt: r.computed_at,
+    }));
+
     res.json({
       householdId,
       totalPoints: Math.round(totalPoints * 100) / 100,
-      history: data || [],
+      rewardHistory,
     });
   } catch (err) {
     res.status(500).json({ error: String(err) });
