@@ -128,6 +128,149 @@ const getAuthRole = async (req, res) => {
 app.get("/auth/role", getAuthRole);
 app.get("/api/auth/role", getAuthRole);
 
+// Delete an Auth account only when it has no matching app profile.
+const deleteUnprofiledAuthUser = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Missing bearer token" });
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(
+      token
+    );
+
+    if (authError || !authData?.user) {
+      return res.status(401).json({
+        error: authError?.message || "Invalid session",
+      });
+    }
+
+    const user = authData.user;
+    let profile = null;
+
+    const { data: profileById, error: profileByIdError } = await supabase
+      .from("user_profiles")
+      .select("role, email")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileByIdError) {
+      return res.status(500).json({ error: profileByIdError.message });
+    }
+
+    profile = profileById;
+
+    if (!profile && user.email) {
+      const { data: profileByEmail, error: profileByEmailError } =
+        await supabase
+          .from("user_profiles")
+          .select("role, email")
+          .eq("email", user.email)
+          .maybeSingle();
+
+      if (profileByEmailError) {
+        return res.status(500).json({ error: profileByEmailError.message });
+      }
+
+      profile = profileByEmail;
+    }
+
+    if (profile) {
+      return res.json({
+        deleted: false,
+        role: profile.role,
+      });
+    }
+
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+
+    if (deleteError) {
+      return res.status(500).json({ error: deleteError.message });
+    }
+
+    res.json({ deleted: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+};
+
+app.post("/auth/delete-unprofiled", deleteUnprofiledAuthUser);
+app.post("/api/auth/delete-unprofiled", deleteUnprofiledAuthUser);
+
+// Delete an Auth account by email only when it has no matching app profile.
+const deleteUnprofiledAuthUserByEmail = async (req, res) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const { data: profileByEmail, error: profileByEmailError } = await supabase
+      .from("user_profiles")
+      .select("id, role")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (profileByEmailError) {
+      return res.status(500).json({ error: profileByEmailError.message });
+    }
+
+    if (profileByEmail) {
+      return res.json({ deleted: false, hasProfile: true });
+    }
+
+    const { data: userList, error: listError } =
+      await supabase.auth.admin.listUsers();
+
+    if (listError) {
+      return res.status(500).json({ error: listError.message });
+    }
+
+    const authUser = userList?.users?.find(
+      (user) => String(user.email || "").toLowerCase() === email
+    );
+
+    if (!authUser) {
+      return res.json({ deleted: false, hasAuthUser: false });
+    }
+
+    const { data: profileById, error: profileByIdError } = await supabase
+      .from("user_profiles")
+      .select("id, role")
+      .eq("id", authUser.id)
+      .maybeSingle();
+
+    if (profileByIdError) {
+      return res.status(500).json({ error: profileByIdError.message });
+    }
+
+    if (profileById) {
+      return res.json({ deleted: false, hasProfile: true });
+    }
+
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(
+      authUser.id
+    );
+
+    if (deleteError) {
+      return res.status(500).json({ error: deleteError.message });
+    }
+
+    res.json({ deleted: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+};
+
+app.post("/auth/delete-unprofiled-email", deleteUnprofiledAuthUserByEmail);
+app.post("/api/auth/delete-unprofiled-email", deleteUnprofiledAuthUserByEmail);
+
 // DB connection test
 app.get("/db-test", async (req, res) => {
   try {

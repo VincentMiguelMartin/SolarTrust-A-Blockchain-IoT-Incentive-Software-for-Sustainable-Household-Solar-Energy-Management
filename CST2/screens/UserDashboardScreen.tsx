@@ -5,15 +5,18 @@ import {
   ScrollView,
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { LineChart } from "react-native-chart-kit";
 import { RootStackParamList } from "../App";
 import { useEnergy } from "../context/EnergyContext";
+import { supabase } from "../lib/supabase";
 
 type Props = NativeStackScreenProps<RootStackParamList, "UserDashboard">;
 
@@ -43,7 +46,26 @@ const reportStyleByLevel = {
   urgent: "urgentReport",
 } as const;
 
-const userPlant = { id: "TTC60011", name: "Taneko" };
+const emptyUserPlant = { id: "", name: "No plant selected" };
+
+type UserPlant = {
+  id: string;
+  name: string;
+};
+
+type AllowedPlant = {
+  plant_id: string;
+  label: string | null;
+};
+
+type AllowedPlantLookup = {
+  plant: AllowedPlant | null;
+  errorMessage: string;
+};
+
+function getPlantStorageKey(userId?: string) {
+  return `userPlantId:${userId ?? "guest"}`;
+}
 
 function mean(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -107,12 +129,155 @@ function buildReports(solarWatts: number, history: number[], ts: string): Energy
 
 export default function UserDashboardScreen({ navigation }: Props) {
   const screenWidth = Dimensions.get("window").width;
-  const { reading, usageHistory, powerHistory, lastUpdate, error, debugState } =
-    useEnergy();
+  const {
+    selectedPlantId,
+    setSelectedPlantId,
+    reading,
+    usageHistory,
+    powerHistory,
+    lastUpdate,
+    error,
+    debugState,
+  } = useEnergy();
   const [reports, setReports] = useState<EnergyReport[]>(normalReports);
   const [selectedReport, setSelectedReport] = useState<EnergyReport | null>(null);
+  const [userPlant, setUserPlant] = useState<UserPlant>(emptyUserPlant);
+  const [showAddPlantForm, setShowAddPlantForm] = useState(false);
+  const [newPlantId, setNewPlantId] = useState("");
+  const hasPlant = Boolean(selectedPlantId.trim() && userPlant.id);
+
+  const loadAllowedPlant = async (
+    plantId: string
+  ): Promise<AllowedPlantLookup> => {
+    const { data, error } = await supabase
+      .from("allowed_plants")
+      .select("plant_id, label")
+      .eq("plant_id", plantId)
+      .maybeSingle<AllowedPlant>();
+
+    if (error) {
+      console.log("Unable to load allowed plant:", error.message);
+      return { plant: null, errorMessage: error.message };
+    }
+
+    return { plant: data, errorMessage: "" };
+  };
 
   useEffect(() => {
+    let active = true;
+    setSelectedPlantId("");
+
+    async function loadUserPlant() {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !userData.user) {
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", userData.user.id)
+        .maybeSingle();
+
+      if (profileError || !active) {
+        if (profileError) {
+          console.log("Unable to load profile plant:", profileError.message);
+        }
+        return;
+      }
+
+      const profilePlantId =
+        profile?.plant_id;
+      const storedPlantId = await AsyncStorage.getItem(
+        getPlantStorageKey(userData.user.id)
+      );
+      const plantId = String(profilePlantId ?? storedPlantId ?? "").trim();
+
+      if (!plantId) {
+        setUserPlant(emptyUserPlant);
+        return;
+      }
+
+      const { plant: allowedPlant } = await loadAllowedPlant(plantId);
+
+      if (!allowedPlant || !active) {
+        setUserPlant(emptyUserPlant);
+        setSelectedPlantId("");
+        return;
+      }
+
+      setUserPlant({
+        id: allowedPlant.plant_id,
+        name: allowedPlant.label || "Plant",
+      });
+      setSelectedPlantId(plantId);
+    }
+
+    loadUserPlant();
+
+    return () => {
+      active = false;
+    };
+  }, [setSelectedPlantId]);
+
+  const handleAddPlant = async () => {
+    const plantId = newPlantId.trim().toUpperCase();
+
+    if (!plantId) {
+      return;
+    }
+
+    const { plant: allowedPlant, errorMessage } = await loadAllowedPlant(plantId);
+
+    if (!allowedPlant) {
+      Alert.alert(
+        "Plant ID not available",
+        errorMessage
+          ? `Unable to check allowed_plants: ${errorMessage}`
+          : `No allowed_plants row was visible for ${plantId}. Check the plant ID or Supabase SELECT/RLS policy.`
+      );
+      return;
+    }
+
+    const plant = {
+      id: allowedPlant.plant_id,
+      name: allowedPlant.label || "Plant",
+    };
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (userData.user) {
+      await AsyncStorage.setItem(getPlantStorageKey(userData.user.id), plantId);
+
+      const { error: updateError } = await supabase
+        .from("user_profiles")
+        .update({ plant_id: plantId })
+        .eq("id", userData.user.id);
+
+      if (
+        updateError &&
+        !updateError.message.toLowerCase().includes("schema cache")
+      ) {
+        Alert.alert("Unable to save plant", updateError.message);
+        return;
+      }
+    } else {
+      await AsyncStorage.setItem(getPlantStorageKey(), plantId);
+    }
+
+    setUserPlant(plant);
+    setSelectedPlantId(plantId);
+    setNewPlantId("");
+    setShowAddPlantForm(false);
+  };
+
+  useEffect(() => {
+    if (!hasPlant) {
+      setReports(normalReports);
+      setSelectedReport(null);
+      return;
+    }
+
     if (error) {
       setReports([
         {
@@ -131,7 +296,7 @@ export default function UserDashboardScreen({ navigation }: Props) {
       buildReports(reading.solarWatts, powerHistory.slice(0, -1), lastUpdate)
     );
     setSelectedReport(null);
-  }, [error, lastUpdate, powerHistory, reading.solarWatts]);
+  }, [error, hasPlant, lastUpdate, powerHistory, reading.solarWatts]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -171,7 +336,9 @@ export default function UserDashboardScreen({ navigation }: Props) {
           <View style={styles.cardHeader}>
             <View>
               <Text style={styles.cardLabel}>Current Power Usage</Text>
-              <Text style={styles.powerValue}>{reading.powerUsageWatts} W</Text>
+              <Text style={styles.powerValue}>
+                {hasPlant ? reading.powerUsageWatts : 0} W
+              </Text>
             </View>
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
@@ -182,10 +349,10 @@ export default function UserDashboardScreen({ navigation }: Props) {
           <View style={styles.chartContainer}>
             <LineChart
               data={{
-                labels: usageHistory.map((_, i) => i.toString()),
+                labels: hasPlant ? usageHistory.map((_, i) => i.toString()) : ["0"],
                 datasets: [
                   {
-                    data: usageHistory.length ? usageHistory : [0],
+                    data: hasPlant && usageHistory.length ? usageHistory : [0],
                   },
                 ],
               }}
@@ -222,17 +389,60 @@ export default function UserDashboardScreen({ navigation }: Props) {
             <View style={styles.plantTextGroup}>
               <Text style={styles.plantLabel}>Current Plant</Text>
               <Text style={styles.plantName}>{userPlant.name}</Text>
+              <Text style={styles.plantId}>
+                Plant ID: {userPlant.id || "Empty"}
+              </Text>
             </View>
             <TouchableOpacity
               style={styles.plantInfoButton}
               activeOpacity={0.85}
-              onPress={() =>
-                Alert.alert(userPlant.name, `Plant ID: ${userPlant.id}`)
-              }
+              onPress={() => {
+                if (!userPlant.id) {
+                  Alert.alert("Plant ID is empty", "Add your Plant ID first.");
+                  return;
+                }
+
+                Alert.alert(userPlant.name, `Plant ID: ${userPlant.id}`);
+              }}
             >
               <MaterialIcons name="info-outline" size={22} color="#32702f" />
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addPlantButton}
+              activeOpacity={0.85}
+              onPress={() => {
+                setNewPlantId(userPlant.id);
+                setShowAddPlantForm((current) => !current);
+              }}
+            >
+              <MaterialIcons name="add" size={22} color="#ffffff" />
+            </TouchableOpacity>
           </View>
+
+          {showAddPlantForm ? (
+            <View style={styles.addPlantForm}>
+              <TextInput
+                style={styles.plantInput}
+                placeholder="Plant ID"
+                placeholderTextColor="#777777"
+                value={newPlantId}
+                onChangeText={setNewPlantId}
+                autoCapitalize="characters"
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.savePlantButton,
+                  !newPlantId.trim() ? styles.disabledPlantButton : null,
+                ]}
+                activeOpacity={0.85}
+                disabled={!newPlantId.trim()}
+                onPress={handleAddPlant}
+              >
+                <Text style={styles.savePlantText}>Save Plant</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.reportBoard}>
@@ -441,6 +651,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
+  plantId: {
+    color: "#555555",
+    fontSize: 12,
+    marginTop: 3,
+  },
+
   plantInfoButton: {
     width: 42,
     height: 42,
@@ -448,6 +664,52 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f1f1",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  addPlantButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: "#32702f",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+
+  addPlantForm: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 8,
+    elevation: 2,
+  },
+
+  plantInput: {
+    backgroundColor: "#f1f1f1",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 48,
+    color: "#1f1f1f",
+    fontSize: 15,
+    marginBottom: 12,
+  },
+
+  savePlantButton: {
+    height: 46,
+    borderRadius: 8,
+    backgroundColor: "#32702f",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  disabledPlantButton: {
+    backgroundColor: "#9fb59d",
+  },
+
+  savePlantText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
   },
 
   reportBoard: {

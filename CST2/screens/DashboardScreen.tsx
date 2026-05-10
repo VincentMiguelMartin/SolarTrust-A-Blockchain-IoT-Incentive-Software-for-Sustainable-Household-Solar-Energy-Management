@@ -47,6 +47,7 @@ const reportStyleByLevel = {
 const initialAdminPlants = [
   { id: "TTC60011", name: "Taneko" },
 ];
+const DEFAULT_ADMIN_PLANT_ID = initialAdminPlants[0].id;
 
 function getReportLevel(severity: unknown): AnomalyLevel {
   const value = String(severity ?? "").toLowerCase();
@@ -208,12 +209,16 @@ export default function DashboardScreen({ navigation }: Props) {
     adminPlants.find((plant) => plant.id === selectedPlantId) ?? adminPlants[0];
 
   useEffect(() => {
+    if (!selectedPlantId) {
+      setSelectedPlantId(DEFAULT_ADMIN_PLANT_ID);
+    }
+
     setAdminPlants((current) =>
       current.map((plant) =>
         plant.id === "TTC60011" ? { ...plant, name: "Taneko" } : plant
       )
     );
-  }, []);
+  }, [selectedPlantId, setSelectedPlantId]);
 
   const handleAddPlant = () => {
     const plantId = newPlantId.trim();

@@ -11,6 +11,72 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
+const BASE_URL = API_BASE_URL.replace(/\/+$/, "");
+
+async function requestAccountCleanup(cleanupUrl: string, email: string) {
+  try {
+    const response = await fetch(cleanupUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const body = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        body?.error ||
+          `Account cleanup failed with HTTP ${response.status} at ${cleanupUrl}.`
+      );
+    }
+
+    return body as { deleted?: boolean; hasProfile?: boolean };
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+
+    throw new Error(
+      `Unable to reach account cleanup server at ${cleanupUrl}. Make sure the backend is running.`
+    );
+  }
+}
+
+async function deleteAuthOnlyAccount(email: string) {
+  const primaryUrl = `${BASE_URL}/auth/delete-unprofiled-email`;
+  const fallbackUrl = `${BASE_URL}/api/auth/delete-unprofiled-email`;
+
+  try {
+    return await requestAccountCleanup(primaryUrl, email);
+  } catch (primaryError) {
+    try {
+      return await requestAccountCleanup(fallbackUrl, email);
+    } catch (fallbackError) {
+      const primaryMessage =
+        primaryError instanceof Error ? primaryError.message : String(primaryError);
+      const fallbackMessage =
+        fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      const routeMissing =
+        primaryMessage.includes("HTTP 404") &&
+        fallbackMessage.includes("HTTP 404");
+
+      if (routeMissing) {
+        throw new Error(
+          "Account cleanup route is missing on the running backend. Restart CST2_backend, then try registering again."
+        );
+      }
+
+      throw new Error(
+        `${primaryMessage}\nAlso tried ${fallbackUrl}: ${fallbackMessage}`
+      );
+    }
+  }
+}
+
 export default function RegisterScreen() {
   const navigation = useNavigation();
 
@@ -20,6 +86,30 @@ export default function RegisterScreen() {
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const createAccount = async () => {
+    return supabase.auth.signUp({
+      email: email.trim(),
+      password: password.trim(),
+      options: {
+        data: {
+          name: name.trim(),
+          role: "user",
+        },
+      },
+    });
+  };
+
+  const saveUserProfile = async (userId: string) => {
+    return supabase
+      .from("user_profiles")
+      .upsert({
+        id: userId,
+        email: email.trim(),
+        full_name: name.trim(),
+        role: "user",
+      });
+  };
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirm) {
@@ -32,20 +122,48 @@ export default function RegisterScreen() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: password.trim(),
-      options: {
-        data: {
-          name: name.trim(),
-          role: "user",
-        },
-      },
-    });
+    let { data, error } = await createAccount();
+
+    if (error) {
+      const alreadyRegistered = error.message
+        .toLowerCase()
+        .includes("already");
+
+      if (alreadyRegistered) {
+        try {
+          const cleanup = await deleteAuthOnlyAccount(email.trim());
+
+          if (cleanup.deleted) {
+            const retry = await createAccount();
+            data = retry.data;
+            error = retry.error;
+          } else if (cleanup.hasProfile) {
+            alert("This email is already registered.");
+            return;
+          }
+        } catch (cleanupError) {
+          alert(
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : "Unable to check existing account."
+          );
+          return;
+        }
+      }
+    }
 
     if (error) {
       alert(error.message);
       return;
+    }
+
+    if (data.user) {
+      const { error: profileError } = await saveUserProfile(data.user.id);
+
+      if (profileError) {
+        alert(`Account created, but profile was not saved: ${profileError.message}`);
+        return;
+      }
     }
 
     alert("Account successfully created!");

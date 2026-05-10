@@ -10,7 +10,6 @@ import React, {
 } from "react";
 import { syncEnergy } from "../services/apiService.js";
 
-const DEFAULT_PLANT_ID = "TTC60011";
 const ENERGY_UPDATE_INTERVAL_MS = 300000;
 
 type EnergyReading = {
@@ -47,7 +46,7 @@ const defaultReading: EnergyReading = {
 const EnergyContext = createContext<EnergyContextType>({} as EnergyContextType);
 
 export function EnergyProvider({ children }: { children: ReactNode }) {
-  const [selectedPlantId, setSelectedPlantId] = useState(DEFAULT_PLANT_ID);
+  const [selectedPlantId, setSelectedPlantId] = useState("");
   const [reading, setReading] = useState<EnergyReading>(defaultReading);
   const [powerHistory, setPowerHistory] = useState<number[]>([]);
   const [usageHistory, setUsageHistory] = useState<number[]>([]);
@@ -64,11 +63,19 @@ export function EnergyProvider({ children }: { children: ReactNode }) {
     try {
       const base =
         process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
+      const plantId = selectedPlantId.trim();
 
-      setDebugUrl(`${base}/energy/sync/${selectedPlantId}`);
+      if (!plantId) {
+        setDebugUrl("");
+        setDebugState("idle");
+        setError("");
+        return;
+      }
+
+      setDebugUrl(`${base}/energy/sync/${plantId}`);
       setDebugState("loading");
 
-      const data = await syncEnergy(selectedPlantId);
+      const data = await syncEnergy(plantId);
       const energy = data?.reading ?? {};
 
       const solarRaw = Number(energy.solarWatts ?? 0);

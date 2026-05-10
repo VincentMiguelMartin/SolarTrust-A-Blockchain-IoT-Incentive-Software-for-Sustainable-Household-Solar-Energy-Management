@@ -21,6 +21,23 @@ const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
 const BASE_URL = API_BASE_URL.replace(/\/+$/, "");
 
+async function deleteAuthUserIfProfileMissing(accessToken: string) {
+  const response = await fetch(`${BASE_URL}/auth/delete-unprofiled`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(body?.error || "Unable to verify this account.");
+  }
+
+  return body as { deleted?: boolean; role?: string };
+}
+
 export default function LoginScreen({ navigation }: Props) {
 
   const [email, setEmail] = useState("");
@@ -41,15 +58,70 @@ export default function LoginScreen({ navigation }: Props) {
     }
 
     if (data.user) {
-      console.log("Logged in:", data.user.email);
-      const { data: profile, error: profileError } = await supabase
+      let { data: profile, error: profileError } = await supabase
         .from("user_profiles")
-        .select("role")
+        .select("role, email")
         .eq("id", data.user.id)
         .maybeSingle();
 
       if (profileError) {
         console.log("Unable to load profile role:", profileError.message);
+        alert("Unable to verify this account. Please try again.");
+        await supabase.auth.signOut();
+        return;
+      }
+
+      if (!profile && data.user.email) {
+        const emailProfileResponse = await supabase
+          .from("user_profiles")
+          .select("role, email")
+          .eq("email", data.user.email)
+          .maybeSingle();
+
+        if (emailProfileResponse.error) {
+          console.log(
+            "Unable to load profile by email:",
+            emailProfileResponse.error.message
+          );
+          alert("Unable to verify this account. Please try again.");
+          await supabase.auth.signOut();
+          return;
+        }
+
+        profile = emailProfileResponse.data;
+      }
+
+      if (!profile) {
+        if (!data.session?.access_token) {
+          alert("Unable to verify this account. Please try again.");
+          await supabase.auth.signOut();
+          return;
+        }
+
+        try {
+          const cleanup = await deleteAuthUserIfProfileMissing(
+            data.session.access_token
+          );
+
+          if (cleanup.deleted) {
+            alert("This account does not exist");
+            await supabase.auth.signOut();
+            return;
+          }
+
+          profile = {
+            role: cleanup.role ?? "user",
+            email: data.user.email ?? "",
+          };
+        } catch (cleanupError) {
+          alert(
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : "Unable to verify this account. Please try again."
+          );
+          await supabase.auth.signOut();
+          return;
+        }
       }
 
       let storedRole =
@@ -79,6 +151,7 @@ export default function LoginScreen({ navigation }: Props) {
       const role: UserRole =
         String(storedRole).trim().toLowerCase() === "admin" ? "admin" : "user";
 
+      console.log("Logged in:", data.user.email);
       setRole(role);
       navigation.replace(role === "admin" ? "AdminDashboard" : "UserDashboard");
     }
