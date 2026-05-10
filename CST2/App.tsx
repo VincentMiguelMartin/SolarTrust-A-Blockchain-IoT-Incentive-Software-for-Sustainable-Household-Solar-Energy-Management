@@ -17,6 +17,7 @@ import AboutScreen from "./screens/AboutScreen";
 import StatisticsScreen from "./screens/StatisticsScreen";
 import { AuthProvider } from "./context/AuthContext";
 import { EnergyProvider } from "./context/EnergyContext";
+import { API_BASE_URL } from "./config";
 import { useEffect } from "react";
 
 
@@ -43,7 +44,7 @@ export default function App() {
 
   useEffect(() => {
     console.log("[App] Attempting to connect to server...");
-    fetch('http://192.168.1.39:3000/test')
+    fetch(`${API_BASE_URL}/test`)
       .then(res => {
         console.log("[App] ✓ Response received from server, status:", res.status);
         return res.json();
@@ -56,7 +57,7 @@ export default function App() {
       .catch(error => {
         console.error("[App] ✗ Connection FAILED:", error.message);
         console.error("[App] Make sure:");
-        console.error("  - Server is running on 192.168.1.39:3000");
+        console.error(`  - Server is running on ${API_BASE_URL}`);
         console.error("  - Firewall allows port 3000");
         console.error("  - IP address is correct");
       });

@@ -67,6 +67,13 @@ function getPlantStorageKey(userId?: string) {
   return `userPlantId:${userId ?? "guest"}`;
 }
 
+function formatLocalDateTime(value: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
 function mean(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
@@ -468,7 +475,9 @@ export default function UserDashboardScreen({ navigation }: Props) {
                 <Text style={styles.reportMessage}>{report.message}</Text>
               </View>
               <View style={styles.reportActionGroup}>
-                <Text style={styles.reportTime}>{report.time}</Text>
+                <Text style={styles.reportTime}>
+                  {report.time === "Now" ? "Now" : formatLocalDateTime(report.time)}
+                </Text>
                 {report.level !== "minor" ? (
                   <Text style={styles.viewReportText}>View</Text>
                 ) : null}
@@ -490,7 +499,7 @@ export default function UserDashboardScreen({ navigation }: Props) {
                 </Text>
               ) : null}
               <Text style={styles.reportDetailsText}>
-                Time: {selectedReport.time}
+                Time: {selectedReport.time === "Now" ? "Now" : formatLocalDateTime(selectedReport.time)}
               </Text>
               <Text style={styles.reportDetailsText}>
                 Action: {selectedReport.message}

@@ -1,10 +1,8 @@
-export async function syncEnergy(plantId) {
-  const apiBaseUrl =
-    process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
-  const baseUrl = apiBaseUrl.replace(/\/+$/, "");
+import { API_BASE_URL } from "../config";
 
+export async function syncEnergy(plantId) {
   const res = await fetch(
-    `${baseUrl}/energy/sync/${encodeURIComponent(plantId)}`
+    `${API_BASE_URL}/energy/sync/${encodeURIComponent(plantId)}`
   );
 
   if (!res.ok) {
@@ -15,16 +13,13 @@ export async function syncEnergy(plantId) {
 }
 
 export async function getReadingHistory(plantId, fromDate, toDate) {
-  const apiBaseUrl =
-    process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
-  const baseUrl = apiBaseUrl.replace(/\/+$/, "");
   const params = new URLSearchParams({
     from: fromDate,
     to: toDate,
   });
 
   const res = await fetch(
-    `${baseUrl}/readings/history/${encodeURIComponent(plantId)}?${params.toString()}`
+    `${API_BASE_URL}/readings/history/${encodeURIComponent(plantId)}?${params.toString()}`
   );
 
   if (!res.ok) {

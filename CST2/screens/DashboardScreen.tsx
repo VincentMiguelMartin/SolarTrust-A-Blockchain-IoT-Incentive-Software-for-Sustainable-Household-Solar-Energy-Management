@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
 import {
   SafeAreaView,
   View,
@@ -15,6 +16,19 @@ import { RootStackParamList } from "../App";
 import { LineChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
 import { useEnergy } from "../context/EnergyContext";
+import { supabase } from "../lib/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+function getPlantStorageKey(userId?: string) {
+  return `userPlantId:${userId ?? "guest"}`;
+}
+
+function formatLocalDateTime(value: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
 
 type Props = NativeStackScreenProps<RootStackParamList, "Dashboard">;
 
@@ -44,10 +58,7 @@ const reportStyleByLevel = {
   urgent: "urgentReport",
 } as const;
 
-const initialAdminPlants = [
-  { id: "TTC60011", name: "Taneko" },
-];
-const DEFAULT_ADMIN_PLANT_ID = initialAdminPlants[0].id;
+type AdminPlant = { id: string; name: string };
 
 function getReportLevel(severity: unknown): AnomalyLevel {
   const value = String(severity ?? "").toLowerCase();
@@ -184,6 +195,8 @@ function buildAnomalyReports(
 
 export default function DashboardScreen({ navigation }: Props) {
   const screenWidth = Dimensions.get("window").width;
+  const { role } = useContext(AuthContext);
+  const isAdmin = role === "admin";
   const {
     selectedPlantId,
     setSelectedPlantId,
@@ -201,7 +214,7 @@ export default function DashboardScreen({ navigation }: Props) {
   const [selectedReport, setSelectedReport] = useState<AnomalyReport | null>(
     null
   );
-  const [adminPlants, setAdminPlants] = useState(initialAdminPlants);
+  const [adminPlants, setAdminPlants] = useState<AdminPlant[]>([]);
   const [showPlantDropdown, setShowPlantDropdown] = useState(false);
   const [showAddPlantForm, setShowAddPlantForm] = useState(false);
   const [newPlantId, setNewPlantId] = useState("");
@@ -209,32 +222,127 @@ export default function DashboardScreen({ navigation }: Props) {
     adminPlants.find((plant) => plant.id === selectedPlantId) ?? adminPlants[0];
 
   useEffect(() => {
-    if (!selectedPlantId) {
-      setSelectedPlantId(DEFAULT_ADMIN_PLANT_ID);
-    }
+    let active = true;
 
-    setAdminPlants((current) =>
-      current.map((plant) =>
-        plant.id === "TTC60011" ? { ...plant, name: "Taneko" } : plant
-      )
-    );
-  }, [selectedPlantId, setSelectedPlantId]);
+    (async () => {
+      const { data, error: plantsError } = await supabase
+        .from("allowed_plants")
+        .select("plant_id, label")
+        .order("plant_id", { ascending: true });
 
-  const handleAddPlant = () => {
-    const plantId = newPlantId.trim();
+      if (!active) return;
+
+      if (plantsError) {
+        console.log("Unable to load allowed_plants:", plantsError.message);
+        return;
+      }
+
+      const plants: AdminPlant[] = (data ?? []).map((row) => ({
+        id: row.plant_id,
+        name: row.label || row.plant_id,
+      }));
+
+      setAdminPlants(plants);
+
+      if (selectedPlantId) return;
+
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+
+      let savedPlantId = "";
+      if (userId) {
+        if (!isAdmin) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("plant_id")
+            .eq("id", userId)
+            .maybeSingle<{ plant_id: string | null }>();
+
+          savedPlantId = String(profile?.plant_id ?? "").trim();
+        }
+
+        if (!savedPlantId) {
+          const cached = await AsyncStorage.getItem(getPlantStorageKey(userId));
+          savedPlantId = String(cached ?? "").trim();
+        }
+      }
+
+      if (!active) return;
+
+      const matched = savedPlantId
+        ? plants.find((p) => p.id === savedPlantId)
+        : null;
+
+      if (matched) {
+        setSelectedPlantId(matched.id);
+      } else if (plants.length > 0) {
+        setSelectedPlantId(plants[0].id);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedPlantId, setSelectedPlantId, isAdmin]);
+
+  const handleAddPlant = async () => {
+    const plantId = newPlantId.trim().toUpperCase();
 
     if (!plantId) {
       return;
     }
 
-    if (!adminPlants.some((plant) => plant.id === plantId)) {
+    const { data: allowedPlant, error: lookupError } = await supabase
+      .from("allowed_plants")
+      .select("plant_id, label")
+      .eq("plant_id", plantId)
+      .maybeSingle<{ plant_id: string; label: string | null }>();
+
+    if (lookupError || !allowedPlant) {
+      Alert.alert(
+        "Plant ID not available",
+        lookupError
+          ? `Unable to check allowed_plants: ${lookupError.message}`
+          : `No allowed_plants row was visible for ${plantId}. Check the plant ID or Supabase SELECT/RLS policy.`
+      );
+      return;
+    }
+
+    if (!adminPlants.some((plant) => plant.id === allowedPlant.plant_id)) {
       setAdminPlants((current) => [
         ...current,
-        { id: plantId, name: `Plant ${current.length + 1}` },
+        { id: allowedPlant.plant_id, name: allowedPlant.label || allowedPlant.plant_id },
       ]);
     }
 
-    setSelectedPlantId(plantId);
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
+    if (userId) {
+      await AsyncStorage.setItem(
+        getPlantStorageKey(userId),
+        allowedPlant.plant_id
+      );
+
+      if (!isAdmin) {
+        const { error: updateError } = await supabase
+          .from("user_profiles")
+          .update({ plant_id: allowedPlant.plant_id })
+          .eq("id", userId);
+
+        if (
+          updateError &&
+          !updateError.message.toLowerCase().includes("schema cache")
+        ) {
+          Alert.alert("Unable to save plant", updateError.message);
+          return;
+        }
+      }
+    } else {
+      await AsyncStorage.setItem(getPlantStorageKey(), allowedPlant.plant_id);
+    }
+
+    setSelectedPlantId(allowedPlant.plant_id);
     setNewPlantId("");
     setShowAddPlantForm(false);
   };
@@ -357,7 +465,7 @@ export default function DashboardScreen({ navigation }: Props) {
         </TouchableOpacity>
 
         {lastUpdate ? (
-          <Text style={styles.meta}>Last update: {lastUpdate}</Text>
+          <Text style={styles.meta}>Last update: {formatLocalDateTime(lastUpdate)}</Text>
         ) : null}
 
         {error ? <Text style={styles.error}>IoT error: {error}</Text> : null}
@@ -510,7 +618,9 @@ export default function DashboardScreen({ navigation }: Props) {
                 <Text style={styles.reportMessage}>{report.message}</Text>
               </View>
               <View style={styles.reportActionGroup}>
-                <Text style={styles.reportTime}>{report.time}</Text>
+                <Text style={styles.reportTime}>
+                  {report.time === "Now" ? "Now" : formatLocalDateTime(report.time)}
+                </Text>
                 {report.level !== "minor" ? (
                   <Text style={styles.viewReportText}>View</Text>
                 ) : null}
@@ -532,7 +642,7 @@ export default function DashboardScreen({ navigation }: Props) {
                 </Text>
               ) : null}
               <Text style={styles.reportDetailsText}>
-                Time: {selectedReport.time}
+                Time: {selectedReport.time === "Now" ? "Now" : formatLocalDateTime(selectedReport.time)}
               </Text>
               <Text style={styles.reportDetailsText}>
                 Action: {selectedReport.message}

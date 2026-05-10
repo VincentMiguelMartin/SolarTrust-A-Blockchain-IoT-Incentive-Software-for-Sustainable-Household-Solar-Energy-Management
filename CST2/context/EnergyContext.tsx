@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import { syncEnergy } from "../services/apiService.js";
+import { API_BASE_URL } from "../config";
 
 const ENERGY_UPDATE_INTERVAL_MS = 300000;
 
@@ -61,8 +62,7 @@ export function EnergyProvider({ children }: { children: ReactNode }) {
 
   const refreshEnergy = useCallback(async () => {
     try {
-      const base =
-        process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
+      const base = API_BASE_URL;
       const plantId = selectedPlantId.trim();
 
       if (!plantId) {

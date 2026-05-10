@@ -9,7 +9,7 @@ const supabase = createClient(
 const MIN_READINGS = 5;
 
 /** Maximum number of recent readings to fetch for statistical analysis */
-const WINDOW_SIZE = 30;
+const WINDOW_SIZE = 96;
 
 /** Z-Score threshold above which a reading is flagged as anomalous */
 const Z_THRESHOLD = 8;

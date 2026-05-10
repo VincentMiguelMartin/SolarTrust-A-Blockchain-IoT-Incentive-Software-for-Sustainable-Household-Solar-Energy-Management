@@ -1,6 +1,4 @@
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
-const BASE_URL = API_BASE_URL.replace(/\/+$/, "");
+import { API_BASE_URL as BASE_URL } from "../config";
 
 export async function sendGameCompletion(data: {
   householdId: string;

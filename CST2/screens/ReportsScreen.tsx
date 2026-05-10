@@ -12,6 +12,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { MaterialIcons } from "@expo/vector-icons";
 import FloatingBackButton from "../components/FloatingBackButton";
 import { getReadingHistory } from "../services/apiService.js";
+import { useEnergy } from "../context/EnergyContext";
 
 type HistoryRecord = {
   id: string;
@@ -31,10 +32,11 @@ type DayBucket = {
   confirmedCount: number;
 };
 
-const PLANT_ID = "TTC60011";
-
 function toDateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function formatDisplayDate(date: Date | null) {
@@ -104,6 +106,7 @@ function StatusChip({ status }: { status?: string }) {
 }
 
 export default function ReportsScreen() {
+  const { selectedPlantId } = useEnergy();
   const [fromDate, setFromDate] = useState<Date | null>(null);
   const [toDate, setToDate] = useState<Date | null>(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
@@ -129,13 +132,20 @@ export default function ReportsScreen() {
       setError("From date must be before To date.");
       return;
     }
+    const plantId = selectedPlantId.trim();
+    if (!plantId) {
+      setRecords([]);
+      setError("No plant selected. Add one from the dashboard first.");
+      setHasSearched(true);
+      return;
+    }
     try {
       setLoading(true);
       setError("");
       setHasSearched(true);
 
       const data = await getReadingHistory(
-        PLANT_ID,
+        plantId,
         toDateInputValue(from),
         toDateInputValue(to)
       );
@@ -174,13 +184,15 @@ export default function ReportsScreen() {
     setFromDate(from);
     setToDate(to);
     fetchHistory(from, to);
-  }, []);
+  }, [selectedPlantId]);
 
   const buckets = useMemo<DayBucket[]>(() => {
     const map: Record<string, HistoryRecord[]> = {};
     for (const r of records) {
-      const key = (r.ts || "").slice(0, 10);
-      if (!key) continue;
+      if (!r.ts) continue;
+      const d = new Date(r.ts);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = toDateInputValue(d);
       if (!map[key]) map[key] = [];
       map[key].push(r);
     }

@@ -12,11 +12,8 @@ import {
 } from "react-native";
 import FloatingBackButton from "../components/FloatingBackButton";
 import { AuthContext } from "../context/AuthContext";
-
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
-const BASE_URL = API_BASE_URL.replace(/\/+$/, "");
-const HOUSEHOLD_ID = process.env.EXPO_PUBLIC_HOUSEHOLD_ID || "TTC60011";
+import { useEnergy } from "../context/EnergyContext";
+import { API_BASE_URL as BASE_URL } from "../config";
 
 type RewardRow = {
   id?: string;
@@ -50,6 +47,7 @@ function formatDate(value?: string | null) {
 
 export default function RewardScreen({ navigation }: any) {
   const { role } = useContext(AuthContext);
+  const { selectedPlantId } = useEnergy();
   const homeRoute = role === "admin" ? "AdminDashboard" : "UserDashboard";
   const [rewardData, setRewardData] = useState<RewardsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +55,15 @@ export default function RewardScreen({ navigation }: any) {
   const [error, setError] = useState<string | null>(null);
 
   const loadRewards = useCallback(async (isRefresh = false) => {
+    const plantId = selectedPlantId.trim();
+    if (!plantId) {
+      setError("No plant selected. Add one from the dashboard first.");
+      setRewardData(null);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -66,7 +73,7 @@ export default function RewardScreen({ navigation }: any) {
 
     try {
       const res = await fetch(
-        `${BASE_URL}/api/rewards/${encodeURIComponent(HOUSEHOLD_ID)}`
+        `${BASE_URL}/api/rewards/${encodeURIComponent(plantId)}`
       );
       const body = await res.json();
 
@@ -75,7 +82,7 @@ export default function RewardScreen({ navigation }: any) {
       }
 
       setRewardData({
-        householdId: body.householdId || HOUSEHOLD_ID,
+        householdId: body.householdId || plantId,
         totalPoints: toNumber(body.totalPoints),
         history: Array.isArray(body.history) ? body.history : [],
       });
@@ -86,7 +93,7 @@ export default function RewardScreen({ navigation }: any) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedPlantId]);
 
   useEffect(() => {
     loadRewards();
@@ -149,7 +156,7 @@ export default function RewardScreen({ navigation }: any) {
               <View style={styles.householdRow}>
                 <MaterialIcons name="solar-power" size={18} color="#32702f" />
                 <Text style={styles.householdText}>
-                  Household {rewardData?.householdId || HOUSEHOLD_ID}
+                  Household {rewardData?.householdId || selectedPlantId || "—"}
                 </Text>
               </View>
             </View>

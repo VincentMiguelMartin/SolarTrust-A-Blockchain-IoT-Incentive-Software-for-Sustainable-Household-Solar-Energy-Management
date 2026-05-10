@@ -14,12 +14,9 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import { AuthContext, UserRole } from "../context/AuthContext";
+import { API_BASE_URL as BASE_URL } from "../config";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
-
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.39:3000";
-const BASE_URL = API_BASE_URL.replace(/\/+$/, "");
 
 async function deleteAuthUserIfProfileMissing(accessToken: string) {
   const response = await fetch(`${BASE_URL}/auth/delete-unprofiled`, {
