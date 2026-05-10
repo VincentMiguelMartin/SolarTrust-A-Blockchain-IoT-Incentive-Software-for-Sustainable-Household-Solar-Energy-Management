@@ -115,7 +115,7 @@ function buildAnomalyReports(
     issueSeverities.includes(String(severity ?? "").toLowerCase());
 
   if (!hasIssue) {
-    if (solarWatts < 0 || solarWatts > 20000) {
+    if (solarWatts < 0 || solarWatts > 100000) {
       return [
         {
           level: "urgent",

@@ -78,7 +78,7 @@ function stdDev(values: number[], avg: number) {
 }
 
 function buildReports(solarWatts: number, history: number[], ts: string): EnergyReport[] {
-  if (solarWatts < 0 || solarWatts > 20000) {
+  if (solarWatts < 0 || solarWatts > 100000) {
     return [
       {
         level: "urgent",

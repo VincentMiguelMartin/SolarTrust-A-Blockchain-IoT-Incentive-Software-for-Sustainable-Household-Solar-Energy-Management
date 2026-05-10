@@ -12,10 +12,10 @@ const MIN_READINGS = 5;
 const WINDOW_SIZE = 30;
 
 /** Z-Score threshold above which a reading is flagged as anomalous */
-const Z_THRESHOLD = 3;
+const Z_THRESHOLD = 8;
 
 /** Physical upper bound for solar panel wattage (watts) */
-const MAX_SOLAR_WATTS = 20000;
+const MAX_SOLAR_WATTS = 100000;
 
 /**
  * Computes the arithmetic mean of an array of numbers.
