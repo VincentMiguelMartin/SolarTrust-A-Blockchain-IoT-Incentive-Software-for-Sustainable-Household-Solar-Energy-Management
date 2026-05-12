@@ -14,6 +14,7 @@ import FloatingBackButton from "../components/FloatingBackButton";
 import { AuthContext } from "../context/AuthContext";
 import { useEnergy } from "../context/EnergyContext";
 import { API_BASE_URL as BASE_URL } from "../config";
+import { supabase } from "../lib/supabase";
 
 type RewardRow = {
   id?: string;
@@ -72,8 +73,11 @@ export default function RewardScreen({ navigation }: any) {
     setError(null);
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
       const res = await fetch(
-        `${BASE_URL}/api/rewards/${encodeURIComponent(plantId)}`
+        `${BASE_URL}/api/rewards/${encodeURIComponent(plantId)}`,
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
       );
       const body = await res.json();
 

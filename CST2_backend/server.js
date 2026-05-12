@@ -14,7 +14,10 @@ const {
 } = require("./services/blockfrostService");
 const { recordEnergyOnChain, runBatch } = require("./services/blockchainRecordService");
 const { createClient } = require("@supabase/supabase-js");
+const { detectAnomaly } = require("./middleware/validateEnergy");
 const rewardRoutes = require("./routes/rewardRoutes");
+
+const MAX_TS_DRIFT_MS = Number(process.env.MAX_TS_DRIFT_MS || 5 * 60 * 1000);
 
 console.log("File is running...");
 console.log("Running file:", __filename);
@@ -310,6 +313,29 @@ app.post("/readings", async (req, res) => {
     if (!householdId || !ts || solarWatts == null || gridWatts == null) {
       return res.status(400).json({
         error: "householdId, ts, solarWatts, gridWatts are required",
+      });
+    }
+
+    const parsedTs = Date.parse(ts);
+    if (Number.isNaN(parsedTs)) {
+      return res.status(400).json({ error: "ts must be a valid ISO timestamp" });
+    }
+    const driftMs = Math.abs(Date.now() - parsedTs);
+    if (driftMs > MAX_TS_DRIFT_MS) {
+      return res.status(400).json({
+        error: `Timestamp drift ${driftMs}ms exceeds ${MAX_TS_DRIFT_MS}ms`,
+        anomaly: true,
+        reason: "timestamp_drift",
+      });
+    }
+
+    const anomaly = await detectAnomaly(householdId, Number(solarWatts));
+    if (anomaly.isAnomaly) {
+      return res.status(400).json({
+        error: anomaly.reason,
+        anomaly: true,
+        reason: anomaly.reason,
+        zScore: anomaly.zScore ?? null,
       });
     }
 

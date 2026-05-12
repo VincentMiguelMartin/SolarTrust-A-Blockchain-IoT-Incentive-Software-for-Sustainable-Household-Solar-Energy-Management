@@ -94,18 +94,46 @@ describe("Functional suitability black box tests", () => {
     // Reward points are only computed after a confirmed blockchain batch.
   });
 
-  test("TC-FS-05: /api/rewards/:householdId returns accumulated balance contract", async () => {
-    const res = await api().get(`/api/rewards/${encodeURIComponent(TEST_HOUSEHOLD_ID)}`);
+  // /api/rewards/:householdId is now bearer-token protected (see
+  // routes/rewardRoutes.js requireBearerUser). Functional-suitability of the
+  // response body shape is covered through the live e2e suite when a valid
+  // Supabase JWT is available; the protection itself is asserted in TC-SEC-01.
+  test.skip("TC-FS-05: /api/rewards/:householdId returns accumulated balance contract (REQUIRES VALID JWT)", () => {});
 
-    expect(res.status).toBe(200);
-    expect(res.body.householdId).toBe(TEST_HOUSEHOLD_ID);
-    expect(Number(res.body.totalPoints)).toBeGreaterThanOrEqual(0);
-    expect(Array.isArray(res.body.history)).toBe(true);
+  test("TC-FS-06: /readings rejects a Z-score anomaly once enough history exists", async () => {
+    // Seed five identical baseline readings so the household has a known mean
+    // and a non-zero stddev only after we send a wildly different value.
+    const household = `bbx-anomaly-${Date.now()}`;
+    // Spread six seeds within the last 3 minutes so all fall inside the
+    // server-enforced MAX_TS_DRIFT_MS window of 5 minutes.
+    const baseTs = Date.now() - 3 * 60 * 1000;
+    for (let i = 0; i < 6; i += 1) {
+      await api().post("/readings").send({
+        householdId: household,
+        ts: new Date(baseTs + i * 25 * 1000).toISOString(),
+        solarWatts: 3000 + i * 20,
+        gridWatts: 0,
+      });
+    }
+    // Now send a far-outlier reading (~20 sigma) — must be rejected.
+    const res = await api().post("/readings").send({
+      householdId: household,
+      ts: new Date().toISOString(),
+      solarWatts: 18000,
+      gridWatts: 0,
+    });
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/z-score|anomaly|exceeds/i);
   });
 
-  // Anomaly detection (Z-Score) lives in middleware/validateEnergy.js and is
-  // wired into the Taneko ingestion cron, not the public /readings POST.
-  // White-box coverage is in tests/anomaly-detection.test.js.
-  test.skip("TC-FS-06: anomaly detection flags Z-score > 3 (NOT EXPOSED VIA /readings HTTP route)", () => {});
-  test.skip("TC-FS-07: anomaly detection passes readings within +/- 2 SD (NOT EXPOSED VIA /readings HTTP route)", () => {});
+  test("TC-FS-07: /readings accepts a reading within normal range", async () => {
+    const res = await api().post("/readings").send({
+      householdId: `bbx-normal-${Date.now()}`,
+      ts: new Date().toISOString(),
+      solarWatts: 2500,
+      gridWatts: 100,
+    });
+    expect([200, 201]).toContain(res.status);
+    expect(res.body).toHaveProperty("reading");
+  });
 });

@@ -1,30 +1,111 @@
-# SolarTrust Algorithm Performance Tests
+# SolarTrust Test Suites
 
-Test suite for Chapter 3.7 thesis metrics. All results are written as structured JSON to `tests/results/`.
+This folder holds every automated test that backs Chapter 4 of the thesis. There are **two suites**:
 
-## Prerequisites
+| Suite | What it measures | Chapter 4 section it feeds |
+|---|---|---|
+| **Algorithm performance** (`tests/*.test.js`) | F1-score, Merkle correctness, ingestion latency, end-to-end batch latency, Blockfrost fees | 4.2.1, 4.2.2, 4.2.3 |
+| **Black box** (`tests/blackbox/`) | Functional suitability, reliability, performance, security, edge cases — runs through HTTP only | 4.1 (Table 1) |
 
-- Node.js 18+
-- `CST2_backend/.env` with valid keys (Supabase, Blockfrost Preprod, Taneko)
-- Supabase tables: `readings`, `blockchain_batches`, `households`
-- For E2E/latency tests: backend running (`npm start` in another terminal)
+Results are written as JSON to `tests/results/` (algorithm suite) and as an HTML report to `tests/blackbox/reports/blackbox-report.html` (black box suite).
 
-## Quick Start
+---
 
+## Prerequisites (one-time)
+
+1. **Node.js 18+** installed.
+2. From the repo root, install dependencies:
+   ```bash
+   cd CST2_backend
+   npm install
+   ```
+3. **`.env` file** at `CST2_backend/.env` with at minimum:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `BLOCKFROST_PROJECT_ID` (must start with `preprod` for safety guards)
+   - `CARDANO_WALLET_ADDRESS`, `WALLET_SEED_PHRASE`
+   - `TANEKO_API_KEY`, `TANEKO_BASE_URL`
+   Ask the team lead for the shared `.env` — do not commit it.
+4. Supabase tables exist: `readings`, `blockchain_batches`, `households`, `rewards`, `anomaly_log`, `user_profiles`.
+
+---
+
+## Run EVERYTHING (the full thesis-evidence run)
+
+Open **two terminals** in `CST2_backend/`.
+
+**Terminal A — start the backend and leave it running:**
 ```bash
-cd CST2_backend
+npm start
+```
+Wait for `🚀 Server running on port 3000`. Confirm with:
+```bash
+curl http://127.0.0.1:3000/test
+```
 
-# 1. Unit tests (no server needed)
+**Terminal B — run the four test suites in order:**
+```bash
+# 1. Merkle tree correctness (offline, ~1 second)
 node tests/merkle-tree.test.js
+
+# 2. Anomaly detection + F1-score (needs Supabase, ~10-20 seconds)
 node tests/anomaly-detection.test.js
 
-# 2. Ingestion latency (server must be running)
-npm start &
+# 3. Black box suite — TC-FS-*, TC-REL-*, TC-PERF-*, TC-SEC-*, TC-EDGE-* (~30-60 seconds)
+npm run test:blackbox
+
+# 4. Ingestion latency T1→T2 (10 samples, ~30-60 seconds)
 node tests/ingestion-latency.test.js
 
-# 3. E2E pipeline (server must be running, ~10-15 min, ~0.9 tADA)
+# 5. End-to-end pipeline — batch latency, fees, on-chain verification
+#    (~10-15 minutes, costs ~0.9 tADA on Preprod)
 node tests/e2e-pipeline.test.js
 ```
+
+After step 3, open `tests/blackbox/reports/blackbox-report.html` in a browser for the styled report.
+
+After steps 1, 2, 4, 5, raw measurements are in timestamped JSON files under `tests/results/`.
+
+---
+
+## Run a single suite
+
+| Goal | Command |
+|---|---|
+| Merkle tests only | `node tests/merkle-tree.test.js` |
+| Anomaly + F1 only | `node tests/anomaly-detection.test.js` |
+| Black box only | `npm run test:blackbox` |
+| Ingestion latency only | `node tests/ingestion-latency.test.js` |
+| E2E pipeline only | `node tests/e2e-pipeline.test.js` |
+| Black box with custom backend URL | `BLACKBOX_BASE_URL=http://192.168.x.x:3000 npm run test:blackbox` |
+| E2E with fewer cycles (saves tADA) | `E2E_BATCH_COUNT=3 node tests/e2e-pipeline.test.js` |
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| `ECONNREFUSED 127.0.0.1:3000` | Backend isn't running. Start it in Terminal A with `npm start`. |
+| `BLOCKFROST_PROJECT_ID does not start with "preprod"` | Safety guard — switch your `.env` to a Preprod key before running latency / E2E tests. |
+| `TC-PERF-03: dashboard fetch is <= 1000ms` fails | Slow network (mobile hotspot). Re-run on Wi-Fi. |
+| `400 Bad Request` on seeded `/readings` calls in tests | Your seed timestamps are outside `MAX_TS_DRIFT_MS` (5 min default). Use `new Date().toISOString()` or set `MAX_TS_DRIFT_MS` higher in `.env`. |
+| `401` from `/api/rewards/:id` in tests | Expected — that route is now bearer-token protected. TC-SEC-01 verifies this. |
+| Old results clutter `tests/results/` | Safe to delete any `*_2026-04*` files; newest run is what Chapter 4 cites. |
+
+---
+
+## What each suite produces for Chapter 4
+
+| Suite | Output file | Chapter 4 table |
+|---|---|---|
+| `merkle-tree.test.js` | `tests/results/merkle-tree_<ts>.json` | TC-05, TC-06, TC-07 (Table 1) |
+| `anomaly-detection.test.js` | `tests/results/anomaly-detection_<ts>.json` | Table 2 (F1-Score) |
+| `npm run test:blackbox` | `tests/blackbox/reports/blackbox-report.html` | Table 1 (all 15 TCs) |
+| `ingestion-latency.test.js` | `tests/results/ingestion-latency_<ts>.json` | Table 5 (T1→T2) |
+| `e2e-pipeline.test.js` | `tests/results/e2e-pipeline_<ts>.json` | Table 4 (fees) + Table 6 (T3→T4) |
+
+---
 
 ## Test Files
 

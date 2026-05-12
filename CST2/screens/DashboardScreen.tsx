@@ -219,7 +219,8 @@ export default function DashboardScreen({ navigation }: Props) {
   const [showAddPlantForm, setShowAddPlantForm] = useState(false);
   const [newPlantId, setNewPlantId] = useState("");
   const selectedPlant =
-    adminPlants.find((plant) => plant.id === selectedPlantId) ?? adminPlants[0];
+    adminPlants.find((plant) => plant.id === selectedPlantId) ??
+    adminPlants[0] ?? { id: "", name: "No plant selected" };
 
   useEffect(() => {
     let active = true;

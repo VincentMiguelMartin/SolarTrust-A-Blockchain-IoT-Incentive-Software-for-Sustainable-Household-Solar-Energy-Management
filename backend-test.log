@@ -1,0 +1,44 @@
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+File is running...
+Running file: D:\SolarTrust-A-Blockchain-IoT-Incentive-Software-for-Sustainable-Household-Solar-Energy-Management\CST2_backend\server.js
+🚀 Server running on port 3000
+[blockchainRecordService] T1 payload received: 2026-05-12T08:13:03.972Z
+[blockchainRecordService] T2 stored: 2026-05-12T08:13:05.258Z
+[blockchainRecordService] IoT Ingestion Latency (T1→T2): 1286ms
+[blockchainService] T3 batch start: 2026-05-12T08:13:05.734Z
+[blockchainService] Merkle Root: 03bc615b11ecd85227defb0ea44a089c1a9703e7ef1f2fb7104dd482368ed4ab
+[blockchainService] T3 batch start: 2026-05-12T08:13:06.824Z
+[blockchainService] Merkle Root: 03bc615b11ecd85227defb0ea44a089c1a9703e7ef1f2fb7104dd482368ed4ab
+[blockchainRecordService] No pending readings for empty-blackbox-plant-1778573586880
+[blockchainService] Submitted txHash: f225788b88f5748fc065bf3bce55917d3b870d9ad90e6665266ebeaeca35d879
+[game] Session recorded for blackbox-household-001, score: 900, cleanliness: 95%
+[blockchainService] Poll 1/20 — tx not yet on-chain
+[blockchainRecordService] No pending readings for TTC60011
+[blockchainService] Poll 2/20 — tx not yet on-chain
+[blockchainService] Poll 3/20 — tx not yet on-chain
+[blockchainService] T4 confirmed: 2026-05-12T08:14:10.602Z
+[blockchainService] Latency: 64868ms
+[blockchainService] Fee: 0.175049 ADA
+[blockchainRecordService] Reward = 12610.95 pts | kWh=1837.033 Wt=0.8 Wn=0.650 Wb=1.320 (baseline=706.3303592592592)
+[tanekoCron] Fetching Taneko data for TTC60011...
+[tanekoCron] Reading accepted — solarWatts: 19960W, zScore: 1.5288169633643272
+[blockchainRecordService] T1 payload received: 2026-05-12T08:15:03.026Z
+[blockchainRecordService] T2 stored: 2026-05-12T08:15:03.996Z
+[blockchainRecordService] IoT Ingestion Latency (T1→T2): 970ms
+[tanekoCron] Recorded reading — id: b26f9a4a-f08f-4e36-b6ec-78c5d08e6ced, hash: d94cb7ade715ac06828e4f78e31acfce44a3f884bdd9cdcf8a3aaa3c184d6acb
+[blockchainRecordService] No pending readings for empty-blackbox-plant-1778573744166
+[blockchainRecordService] T1 payload received: 2026-05-12T08:15:44.483Z
+[blockchainService] T3 batch start: 2026-05-12T08:15:45.836Z
+[blockchainService] Merkle Root: 065912bfa4e0f19783bb24759fa5cb8a7825b4e81842235e795958894eb4a582
+[blockchainRecordService] T2 stored: 2026-05-12T08:15:46.337Z
+[blockchainRecordService] IoT Ingestion Latency (T1→T2): 1854ms
+[blockchainService] T3 batch start: 2026-05-12T08:15:46.813Z
+[blockchainService] Merkle Root: 88cdc865b018b264a00f733b87ac7636a605e7ac27296a8dda15b3ac38ac78ab
+[blockchainService] Submitted txHash: 7a8eb3f53268a6aa774f5a2bb9f6dc5265a4fdb143a24faff3f74cfd1fd47c72
+[blockchainRecordService] No pending readings for TTC60011
+[blockchainRecordService] No pending readings for TTC60011
+[blockchainService] T4 confirmed: 2026-05-12T08:16:04.135Z
+[blockchainService] Latency: 18299ms
+[blockchainService] Fee: 0.175049 ADA
+[blockchainRecordService] Reward = 20.79 pts | kWh=4.990 Wt=0.8 Wn=0.650 Wb=0.801 (baseline=867.8593661186508)
+[game] Session recorded for blackbox-household-001, score: 900, cleanliness: 95%

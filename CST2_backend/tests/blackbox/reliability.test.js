@@ -14,7 +14,7 @@ describe("Reliability black box tests", () => {
     // tighten this assertion to expect 409 on the second call.
     const payload = {
       householdId: TEST_HOUSEHOLD_ID,
-      ts: "2026-05-05T08:00:00.000Z",
+      ts: new Date().toISOString(),
       solarWatts: 800,
       gridWatts: 100,
     };

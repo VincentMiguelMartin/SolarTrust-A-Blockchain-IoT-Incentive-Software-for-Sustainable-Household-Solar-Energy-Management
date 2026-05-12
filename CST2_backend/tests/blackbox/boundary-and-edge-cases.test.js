@@ -51,13 +51,39 @@ describe("Boundary and edge case black box tests", () => {
     expect([200, 201]).toContain(res.status);
   });
 
-  // The current /readings POST route is a thin Supabase passthrough — it does
-  // NOT enforce solarWatts range or timestamp drift at the HTTP layer. Range
-  // and Z-Score checks live in middleware/validateEnergy.js (cron pipeline).
-  // White-box coverage is in tests/anomaly-detection.test.js.
-  test.skip("TC-EDGE-03: solarWatts = -1 is rejected (NOT ENFORCED ON /readings HTTP ROUTE)", () => {});
-  test.skip("TC-EDGE-04: solarWatts > MAX is rejected (NOT ENFORCED ON /readings HTTP ROUTE)", () => {});
-  test.skip("TC-EDGE-05: timestamp drift is rejected (NOT ENFORCED ON /readings HTTP ROUTE)", () => {});
+  test("TC-EDGE-03: solarWatts = -1 is rejected by /readings (negative wattage)", async () => {
+    const res = await api().post("/readings").send({
+      householdId: TEST_HOUSEHOLD_ID,
+      ts: new Date().toISOString(),
+      solarWatts: -1,
+      gridWatts: 0,
+    });
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/negative/i);
+  });
+
+  test("TC-EDGE-04: solarWatts beyond physical max is rejected by /readings", async () => {
+    const res = await api().post("/readings").send({
+      householdId: TEST_HOUSEHOLD_ID,
+      ts: new Date().toISOString(),
+      solarWatts: 200000,
+      gridWatts: 0,
+    });
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/exceeds|max/i);
+  });
+
+  test("TC-EDGE-05: timestamp drift beyond MAX_TS_DRIFT_MS is rejected", async () => {
+    const driftedTs = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const res = await api().post("/readings").send({
+      householdId: TEST_HOUSEHOLD_ID,
+      ts: driftedTs,
+      solarWatts: 1000,
+      gridWatts: 0,
+    });
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/drift|timestamp/i);
+  });
 
   test("TC-EDGE-06: empty batch window returns no-pending message, not an error", async () => {
     const res = await api()

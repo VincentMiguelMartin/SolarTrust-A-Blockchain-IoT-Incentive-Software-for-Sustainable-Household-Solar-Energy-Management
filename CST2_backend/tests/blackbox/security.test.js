@@ -8,13 +8,25 @@
 const { api, TEST_HOUSEHOLD_ID, TEST_PLANT_ID } = require("./helpers/httpClient");
 
 describe("Security black box tests", () => {
-  // Auth, JWT verification, and rate limiting are not implemented in the
-  // current backend (no /auth/login route, no auth middleware on
-  // /api/rewards/*). These cases are kept for thesis traceability but skipped
-  // until the corresponding controls land — flip them on then.
-  test.skip("TC-SEC-01: unauthenticated request to /api/rewards/:id returns 401 (AUTH NOT IMPLEMENTED)", () => {});
-  test.skip("TC-SEC-03: tampered JWT returns 403 (JWT VERIFICATION NOT IMPLEMENTED)", () => {});
-  test.skip("TC-SEC-05: rate limiting on /auth/login returns 429 (NO /auth/login + NO RATE LIMITER)", () => {});
+  test("TC-SEC-01: unauthenticated request to /api/rewards/:id returns 401", async () => {
+    const res = await api().get(`/api/rewards/${encodeURIComponent(TEST_HOUSEHOLD_ID)}`);
+    expect(res.status).toBe(401);
+    expect(JSON.stringify(res.body)).toMatch(/missing|token/i);
+  });
+
+  test("TC-SEC-03: tampered bearer token returns 403", async () => {
+    const tamperedJwt = "eyJhbGciOiJIUzI1NiJ9.tampered-payload.tampered-signature";
+    const res = await api()
+      .get(`/api/rewards/${encodeURIComponent(TEST_HOUSEHOLD_ID)}`)
+      .set("Authorization", `Bearer ${tamperedJwt}`);
+    expect(res.status).toBe(403);
+  });
+
+  // Login is delegated to Supabase Auth from the React Native client; the
+  // backend does not expose its own /auth/login route. Rate limiting is a
+  // Supabase platform control. This case is documented as scoped-out rather
+  // than a defect.
+  test.skip("TC-SEC-05: rate limiting on /auth/login (SCOPED OUT — login is delegated to Supabase Auth)", () => {});
 
   test("TC-SEC-02: SQL-injection-shaped userId does not leak schema and is parameterized safely", async () => {
     // Routes that touch the DB go through Supabase's typed client, which

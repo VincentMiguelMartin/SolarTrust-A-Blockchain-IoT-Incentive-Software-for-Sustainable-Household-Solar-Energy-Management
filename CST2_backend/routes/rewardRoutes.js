@@ -12,6 +12,25 @@ const supabase = createClient(
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+async function requireBearerUser(req, res, next) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : null;
+
+  if (!token) {
+    return res.status(401).json({ error: "Missing bearer token" });
+  }
+
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) {
+    return res.status(403).json({ error: error?.message || "Invalid session" });
+  }
+
+  req.user = data.user;
+  next();
+}
+
 router.post("/calculate", async (req, res) => {
   try {
     const {
@@ -84,7 +103,7 @@ router.post("/calculate", async (req, res) => {
   }
 });
 
-router.get("/:householdId", async (req, res) => {
+router.get("/:householdId", requireBearerUser, async (req, res) => {
   try {
     const { householdId } = req.params;
 
