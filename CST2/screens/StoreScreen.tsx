@@ -9,19 +9,16 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import FloatingBackButton from "../components/FloatingBackButton";
 import { supabase } from "../lib/supabase";
+import { useEnergy } from "../context/EnergyContext";
 import { API_BASE_URL } from "../config";
 
 const FREE_CLEANING_COST = 100;
 
-function getPlantStorageKey(userId?: string) {
-  return `userPlantId:${userId ?? "guest"}`;
-}
-
 export default function StoreScreen() {
-  const [plantId, setPlantId] = useState<string>("");
+  const { selectedPlantId } = useEnergy();
+  const plantId = selectedPlantId.trim();
   const [points, setPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
@@ -31,33 +28,22 @@ export default function StoreScreen() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session;
-      const userId = session?.user?.id;
       const token = session?.access_token;
 
-      if (!userId || !token) {
+      if (!token) {
         setError("Not signed in");
         setLoading(false);
         return;
       }
 
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("plant_id")
-        .eq("id", userId)
-        .maybeSingle();
-
-      const storedPlantId = await AsyncStorage.getItem(getPlantStorageKey(userId));
-      const resolved = String(profile?.plant_id ?? storedPlantId ?? "").trim();
-      setPlantId(resolved);
-
-      if (!resolved) {
+      if (!plantId) {
         setPoints(0);
         setLoading(false);
         return;
       }
 
       const res = await fetch(
-        `${API_BASE_URL}/api/rewards/${encodeURIComponent(resolved)}`,
+        `${API_BASE_URL}/api/rewards/${encodeURIComponent(plantId)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const body = await res.json().catch(() => ({}));
@@ -76,7 +62,7 @@ export default function StoreScreen() {
       setError(e instanceof Error ? e.message : "Failed to load points");
       setLoading(false);
     }
-  }, []);
+  }, [plantId]);
 
   useEffect(() => {
     loadPoints();
