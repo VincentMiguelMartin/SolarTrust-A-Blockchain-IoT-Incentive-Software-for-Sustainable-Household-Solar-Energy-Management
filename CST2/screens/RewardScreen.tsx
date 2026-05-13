@@ -18,8 +18,10 @@ import { supabase } from "../lib/supabase";
 
 type RewardRow = {
   id?: string;
+  source?: "energy" | "game" | string;
   batch_id?: string | null;
   energy_saved_kwh?: number | string | null;
+  cleanliness?: number | string | null;
   baseline_kwh?: number | string | null;
   w_time?: number | string | null;
   w_network?: number | string | null;
@@ -173,24 +175,33 @@ export default function RewardScreen({ navigation }: any) {
             </View>
 
             {rewardData?.history.length ? (
-              rewardData.history.map((item, index) => (
-                <View style={styles.rewardRow} key={item.id || item.batch_id || index}>
-                  <View style={styles.rewardIcon}>
-                    <MaterialIcons name="verified" size={20} color="#32702f" />
-                  </View>
-                  <View style={styles.rewardDetails}>
-                    <Text style={styles.rewardDate}>
-                      {formatDate(item.computed_at)}
+              rewardData.history.map((item, index) => {
+                const isGame = item.source === "game";
+                return (
+                  <View style={styles.rewardRow} key={item.id || item.batch_id || index}>
+                    <View style={styles.rewardIcon}>
+                      <MaterialIcons
+                        name={isGame ? "videogame-asset" : "verified"}
+                        size={20}
+                        color="#32702f"
+                      />
+                    </View>
+                    <View style={styles.rewardDetails}>
+                      <Text style={styles.rewardDate}>
+                        {formatDate(item.computed_at)}
+                      </Text>
+                      <Text style={styles.rewardMeta}>
+                        {isGame
+                          ? `Game session · ${toNumber(item.cleanliness).toFixed(0)}% clean`
+                          : `${toNumber(item.energy_saved_kwh).toFixed(3)} kWh saved`}
+                      </Text>
+                    </View>
+                    <Text style={styles.rewardPoints}>
+                      +{toNumber(item.reward_points).toFixed(2)}
                     </Text>
-                    <Text style={styles.rewardMeta}>
-                      {toNumber(item.energy_saved_kwh).toFixed(3)} kWh saved
-                    </Text>
                   </View>
-                  <Text style={styles.rewardPoints}>
-                    +{toNumber(item.reward_points).toFixed(2)}
-                  </Text>
-                </View>
-              ))
+                );
+              })
             ) : (
               <View style={styles.emptyState}>
                 <MaterialIcons name="hourglass-empty" size={28} color="#666" />

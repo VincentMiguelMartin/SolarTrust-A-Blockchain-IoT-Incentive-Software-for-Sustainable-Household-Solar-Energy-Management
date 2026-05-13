@@ -12,14 +12,22 @@ import {
 } from "react-native";
 import FloatingBackButton from "../components/FloatingBackButton";
 import { supabase } from "../lib/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_BASE_URL } from "../config";
+
+function getPlantStorageKey(userId?: string) {
+  return `userPlantId:${userId ?? "guest"}`;
+}
 
 export default function SettingsScreen() {
   const [user, setUser] = useState<any>(null);
+  const [plantId, setPlantId] = useState<string>("");
 
   const [showEmailEdit, setShowEmailEdit] = useState(false);
   const [showPasswordEdit, setShowPasswordEdit] = useState(false);
 
   const [email, setEmail] = useState("");
+  const [emailCurrentPassword, setEmailCurrentPassword] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -36,6 +44,18 @@ useEffect(() => {
     if (userData.user) {
       setUser(userData.user);
       setEmail(userData.user.email ?? "");
+
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("plant_id")
+        .eq("id", userData.user.id)
+        .maybeSingle();
+
+      const storedPlantId = await AsyncStorage.getItem(
+        getPlantStorageKey(userData.user.id)
+      );
+
+      setPlantId(String(profile?.plant_id ?? storedPlantId ?? "").trim());
     }
   };
 
@@ -51,26 +71,60 @@ useEffect(() => {
     );
   }
 
-  // 🔥 Update Email
+  // 🔥 Update Email (Force-updates via backend admin API; bypasses confirmation flow)
   const handleUpdateEmail = async () => {
     if (!email) {
       alert("Enter a valid email");
       return;
     }
 
-    const { error } = await supabase.auth.updateUser({
-      email: email,
-    });
+    if (!emailCurrentPassword) {
+      alert("Enter your current password to change email");
+      return;
+    }
 
-    if (error) {
-      alert(error.message);
-    } else {
-      alert("Email update request sent. Check your email to confirm.");
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+
+    if (!accessToken) {
+      alert("Session expired. Please sign in again.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/update-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          newEmail: email,
+          currentPassword: emailCurrentPassword,
+        }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(body?.error || "Unable to update email");
+        return;
+      }
+
+      // Refresh local session so the new email is reflected.
+      await supabase.auth.refreshSession();
+      const { data: refreshed } = await supabase.auth.getUser();
+      if (refreshed.user) setUser(refreshed.user);
+
+      alert("Email updated successfully!");
       setShowEmailEdit(false);
+      setEmailCurrentPassword("");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Unable to update email");
     }
   };
 
-  // 🔥 Update Password (With Current Password Verification)
+  // 🔥 Update Password (Force-updates via backend admin API)
   const handleUpdatePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
       alert("Complete all password fields");
@@ -82,30 +136,41 @@ useEffect(() => {
       return;
     }
 
-    // Step 1: Verify current password
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email!,
-      password: oldPassword,
-    });
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
 
-    if (signInError) {
-      alert("Incorrect current password");
+    if (!accessToken) {
+      alert("Session expired. Please sign in again.");
       return;
     }
 
-    // Step 2: Update password
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/update-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          currentPassword: oldPassword,
+          newPassword: newPassword,
+        }),
+      });
 
-    if (updateError) {
-      alert(updateError.message);
-    } else {
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(body?.error || "Unable to update password");
+        return;
+      }
+
       alert("Password updated successfully!");
       setShowPasswordEdit(false);
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Unable to update password");
     }
   };
 
@@ -131,6 +196,11 @@ useEffect(() => {
             <Text style={styles.label}>Email</Text>
             <Text style={styles.value}>
               {user.email}
+            </Text>
+
+            <Text style={styles.label}>Plant ID</Text>
+            <Text style={styles.value}>
+              {plantId || "No Plant ID"}
             </Text>
           </View>
 
@@ -167,6 +237,15 @@ useEffect(() => {
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
+              />
+
+              <TextInput
+                placeholder="Current Password"
+                placeholderTextColor="#555"
+                style={styles.input}
+                secureTextEntry
+                value={emailCurrentPassword}
+                onChangeText={setEmailCurrentPassword}
               />
 
               <TouchableOpacity

@@ -1,124 +1,28 @@
 import React, { createContext, useState, ReactNode } from "react";
-
-/* ================= USER TYPE ================= */
-
-export type User = {
-  name: string;
-  email: string;
-  password: string;
-};
+import { supabase } from "../lib/supabase";
 
 export type UserRole = "admin" | "user";
 
-/* ================= CONTEXT TYPE ================= */
-
 type AuthContextType = {
-  user: User | null;
   role: UserRole;
   setRole: (role: UserRole) => void;
-  register: (name: string, email: string, password: string) => void;
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
-  updateAccount: (email: string, oldPassword: string, newPassword: string) => boolean;
+  logout: () => Promise<void>;
 };
-
-/* ================= CREATE CONTEXT ================= */
 
 export const AuthContext = createContext<AuthContextType>(
   {} as AuthContextType
 );
 
-/* ================= PROVIDER ================= */
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-
-  // "database" of accounts (RAM only)
-  const [users, setUsers] = useState<User[]>([]);
-
-  // currently logged-in user
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("user");
 
-  /* ---------- REGISTER ---------- */
-  const register = (name: string, email: string, password: string) => {
-
-    // prevent duplicate email
-    const exists = users.find(u => u.email === email);
-    if (exists) {
-      alert("Email already registered");
-      return;
-    }
-
-    const newUser: User = { name, email, password };
-
-    setUsers(prev => [...prev, newUser]);   // save account
-    setCurrentUser(newUser);                // auto login after register
-  };
-
-  /* ---------- LOGIN ---------- */
-  const login = (email: string, password: string) => {
-
-    const found = users.find(
-      u => u.email === email && u.password === password
-    );
-
-    if (!found) return false;
-
-    setCurrentUser(found);
-    return true;
-  };
-
-  /* ---------- LOGOUT ---------- */
-  const logout = () => {
-    setCurrentUser(null);
+  const logout = async () => {
+    await supabase.auth.signOut();
     setRole("user");
   };
 
-  /* ---------- UPDATE ACCOUNT ---------- */
-  const updateAccount = (email: string, oldPassword: string, newPassword: string) => {
-
-    if (!currentUser) return false;
-
-    // verify current password
-    if (currentUser.password !== oldPassword) return false;
-
-    // update user inside users array
-    const updatedUsers = users.map(u => {
-      if (u.email === currentUser.email) {
-        return {
-          ...u,
-          email: email.trim(),
-          password: newPassword.trim(),
-        };
-      }
-      return u;
-    });
-
-    setUsers(updatedUsers);
-
-    // update the logged-in user
-    setCurrentUser({
-      ...currentUser,
-      email: email.trim(),
-      password: newPassword.trim(),
-    });
-
-    return true;
-  };
-
-  /* ---------- PROVIDER ---------- */
   return (
-    <AuthContext.Provider
-      value={{
-        user: currentUser,   // IMPORTANT: screens still use "user"
-        role,
-        setRole,
-        register,
-        login,
-        logout,
-        updateAccount
-      }}
-    >
+    <AuthContext.Provider value={{ role, setRole, logout }}>
       {children}
     </AuthContext.Provider>
   );

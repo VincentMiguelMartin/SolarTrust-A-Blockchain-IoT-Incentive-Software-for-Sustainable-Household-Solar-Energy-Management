@@ -107,45 +107,217 @@ router.get("/:householdId", requireBearerUser, async (req, res) => {
   try {
     const { householdId } = req.params;
 
-    const [allRes, recentRes] = await Promise.all([
+    const [
+      energyAllRes,
+      energyRecentRes,
+      gameAllRes,
+      gameRecentRes,
+      purchasesAllRes,
+      purchasesRecentRes,
+    ] = await Promise.all([
       supabase
         .from("rewards")
         .select("reward_points")
         .eq("household_id", householdId),
       supabase
         .from("rewards")
-        .select("batch_id, reward_points, energy_saved_kwh, computed_at")
+        .select("id, batch_id, reward_points, energy_saved_kwh, computed_at")
         .eq("household_id", householdId)
         .order("computed_at", { ascending: false })
         .limit(20),
+      supabase
+        .from("game_sessions")
+        .select("score")
+        .eq("household_id", householdId),
+      supabase
+        .from("game_sessions")
+        .select("id, score, cleanliness, completed_at")
+        .eq("household_id", householdId)
+        .order("completed_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("store_purchases")
+        .select("cost")
+        .eq("household_id", householdId),
+      supabase
+        .from("store_purchases")
+        .select("id, item_key, item_name, cost, purchased_at")
+        .eq("household_id", householdId)
+        .order("purchased_at", { ascending: false })
+        .limit(20),
     ]);
 
-    if (allRes.error) {
-      return res.status(500).json({ error: allRes.error.message });
+    if (energyAllRes.error) {
+      return res.status(500).json({ error: energyAllRes.error.message });
     }
-    if (recentRes.error) {
-      return res.status(500).json({ error: recentRes.error.message });
+    if (energyRecentRes.error) {
+      return res.status(500).json({ error: energyRecentRes.error.message });
+    }
+    if (gameAllRes.error) {
+      return res.status(500).json({ error: gameAllRes.error.message });
+    }
+    if (gameRecentRes.error) {
+      return res.status(500).json({ error: gameRecentRes.error.message });
+    }
+    if (purchasesAllRes.error) {
+      return res.status(500).json({ error: purchasesAllRes.error.message });
+    }
+    if (purchasesRecentRes.error) {
+      return res.status(500).json({ error: purchasesRecentRes.error.message });
     }
 
-    const totalPoints = (allRes.data || []).reduce(
+    const energyTotal = (energyAllRes.data || []).reduce(
       (s, r) => s + (Number(r.reward_points) || 0),
       0
     );
+    const gameTotal = (gameAllRes.data || []).reduce(
+      (s, r) => s + (Number(r.score) || 0),
+      0
+    );
+    const purchasesTotal = (purchasesAllRes.data || []).reduce(
+      (s, r) => s + (Number(r.cost) || 0),
+      0
+    );
+    const totalPoints = energyTotal + gameTotal - purchasesTotal;
 
-    const rewardHistory = (recentRes.data || []).map((r) => ({
-      batchId: r.batch_id,
-      rewardPoints: Number(r.reward_points) || 0,
-      energySavedKwh: Number(r.energy_saved_kwh) || 0,
-      createdAt: r.computed_at,
+    const energyHistory = (energyRecentRes.data || []).map((r) => ({
+      id: r.id,
+      source: "energy",
+      batch_id: r.batch_id,
+      reward_points: Number(r.reward_points) || 0,
+      energy_saved_kwh: Number(r.energy_saved_kwh) || 0,
+      computed_at: r.computed_at,
     }));
+
+    const gameHistory = (gameRecentRes.data || []).map((r) => ({
+      id: r.id,
+      source: "game",
+      batch_id: null,
+      reward_points: Number(r.score) || 0,
+      cleanliness: Number(r.cleanliness) || 0,
+      computed_at: r.completed_at,
+    }));
+
+    const purchaseHistory = (purchasesRecentRes.data || []).map((r) => ({
+      id: r.id,
+      source: "purchase",
+      batch_id: null,
+      item_key: r.item_key,
+      item_name: r.item_name,
+      reward_points: -(Number(r.cost) || 0),
+      computed_at: r.purchased_at,
+    }));
+
+    const history = [...energyHistory, ...gameHistory, ...purchaseHistory]
+      .sort((a, b) => {
+        const ta = a.computed_at ? Date.parse(a.computed_at) : 0;
+        const tb = b.computed_at ? Date.parse(b.computed_at) : 0;
+        return tb - ta;
+      })
+      .slice(0, 20);
 
     res.json({
       householdId,
       totalPoints: Math.round(totalPoints * 100) / 100,
-      rewardHistory,
+      history,
     });
   } catch (err) {
     res.status(500).json({ error: String(err) });
+  }
+});
+
+// Catalog of redeemable items. Keep server-side so clients can't forge costs.
+const STORE_ITEMS = {
+  free_cleaning: { name: "Free cleaning", cost: 100 },
+};
+
+async function computeAvailablePoints(householdId) {
+  const [energyRes, gameRes, purchasesRes] = await Promise.all([
+    supabase
+      .from("rewards")
+      .select("reward_points")
+      .eq("household_id", householdId),
+    supabase
+      .from("game_sessions")
+      .select("score")
+      .eq("household_id", householdId),
+    supabase
+      .from("store_purchases")
+      .select("cost")
+      .eq("household_id", householdId),
+  ]);
+
+  if (energyRes.error) throw new Error(energyRes.error.message);
+  if (gameRes.error) throw new Error(gameRes.error.message);
+  if (purchasesRes.error) throw new Error(purchasesRes.error.message);
+
+  const energy = (energyRes.data || []).reduce(
+    (s, r) => s + (Number(r.reward_points) || 0),
+    0
+  );
+  const game = (gameRes.data || []).reduce(
+    (s, r) => s + (Number(r.score) || 0),
+    0
+  );
+  const spent = (purchasesRes.data || []).reduce(
+    (s, r) => s + (Number(r.cost) || 0),
+    0
+  );
+
+  return energy + game - spent;
+}
+
+// POST /api/rewards/purchase — redeem a store item with the user's points.
+router.post("/purchase", requireBearerUser, async (req, res) => {
+  try {
+    const householdId = String(req.body?.householdId || "").trim();
+    const itemKey = String(req.body?.itemKey || "").trim();
+
+    if (!householdId || !itemKey) {
+      return res
+        .status(400)
+        .json({ error: "householdId and itemKey are required" });
+    }
+
+    const item = STORE_ITEMS[itemKey];
+    if (!item) {
+      return res.status(400).json({ error: "Unknown item" });
+    }
+
+    const available = await computeAvailablePoints(householdId);
+
+    if (available < item.cost) {
+      return res.status(400).json({
+        error: "Insufficient points",
+        available: Math.round(available * 100) / 100,
+        cost: item.cost,
+      });
+    }
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("store_purchases")
+      .insert({
+        household_id: householdId,
+        item_key: itemKey,
+        item_name: item.name,
+        cost: item.cost,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      return res.status(500).json({ error: insertError.message });
+    }
+
+    const newTotal = available - item.cost;
+
+    res.json({
+      success: true,
+      purchase: inserted,
+      totalPoints: Math.round(newTotal * 100) / 100,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
   }
 });
 

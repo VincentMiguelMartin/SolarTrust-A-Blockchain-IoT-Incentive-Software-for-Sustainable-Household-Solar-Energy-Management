@@ -326,6 +326,13 @@ export default function UserDashboardScreen({ navigation }: Props) {
 
             <TouchableOpacity
               style={styles.iconButton}
+              onPress={() => navigation.navigate("Store")}
+            >
+              <Ionicons name="cart-outline" size={24} color="black" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.iconButton}
               onPress={() => navigation.navigate("Notifications")}
             >
               <Ionicons name="notifications-outline" size={24} color="black" />

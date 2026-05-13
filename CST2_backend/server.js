@@ -40,6 +40,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Verify a user's current password without polluting the shared client's auth state.
+// Calling supabase.auth.signInWithPassword on the module-level client would swap its
+// outgoing bearer from service_role to the user's JWT, breaking later RLS-bypass inserts.
+async function verifyUserPassword(email, password) {
+  const ephemeral = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+  const { error } = await ephemeral.auth.signInWithPassword({ email, password });
+  return !error;
+}
+
 // ======================
 // ROUTES
 // ======================
@@ -273,6 +286,134 @@ const deleteUnprofiledAuthUserByEmail = async (req, res) => {
 
 app.post("/auth/delete-unprofiled-email", deleteUnprofiledAuthUserByEmail);
 app.post("/api/auth/delete-unprofiled-email", deleteUnprofiledAuthUserByEmail);
+
+// Force-update the logged-in user's email (bypasses Supabase confirmation flow).
+const updateAuthEmail = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Missing bearer token" });
+    }
+
+    const newEmail = String(req.body?.newEmail || "").trim();
+    const currentPassword = String(req.body?.currentPassword || "");
+
+    if (!newEmail || !currentPassword) {
+      return res.status(400).json({
+        error: "newEmail and currentPassword are required",
+      });
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(
+      token
+    );
+
+    if (authError || !authData?.user) {
+      return res.status(401).json({
+        error: authError?.message || "Invalid session",
+      });
+    }
+
+    const user = authData.user;
+
+    if (!user.email) {
+      return res.status(400).json({ error: "Current account has no email" });
+    }
+
+    const passwordOk = await verifyUserPassword(user.email, currentPassword);
+    if (!passwordOk) {
+      return res.status(403).json({ error: "Incorrect current password" });
+    }
+
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      user.id,
+      {
+        email: newEmail,
+        email_confirm: true,
+      }
+    );
+
+    if (updateError) {
+      return res.status(500).json({ error: updateError.message });
+    }
+
+    await supabase
+      .from("user_profiles")
+      .update({ email: newEmail })
+      .eq("id", user.id);
+
+    res.json({ success: true, email: newEmail });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+};
+
+app.post("/auth/update-email", updateAuthEmail);
+app.post("/api/auth/update-email", updateAuthEmail);
+
+// Force-update the logged-in user's password (requires current password).
+const updateAuthPassword = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Missing bearer token" });
+    }
+
+    const currentPassword = String(req.body?.currentPassword || "");
+    const newPassword = String(req.body?.newPassword || "");
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        error: "currentPassword and newPassword are required",
+      });
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(
+      token
+    );
+
+    if (authError || !authData?.user) {
+      return res.status(401).json({
+        error: authError?.message || "Invalid session",
+      });
+    }
+
+    const user = authData.user;
+
+    if (!user.email) {
+      return res.status(400).json({ error: "Current account has no email" });
+    }
+
+    const passwordOk = await verifyUserPassword(user.email, currentPassword);
+    if (!passwordOk) {
+      return res.status(403).json({ error: "Incorrect current password" });
+    }
+
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      user.id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      return res.status(500).json({ error: updateError.message });
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+};
+
+app.post("/auth/update-password", updateAuthPassword);
+app.post("/api/auth/update-password", updateAuthPassword);
 
 // DB connection test
 app.get("/db-test", async (req, res) => {

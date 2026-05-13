@@ -65,13 +65,45 @@ async function recordEnergyOnChain(plantId, solarWatts, gridWatts, exportWatts, 
   };
 }
 
+// Reading-status state machine for batch commits:
+//   pending    — accepted by anomaly check, not yet attempted on-chain
+//   submitting — reserved into an in-flight batch (prevents concurrent batches
+//                from re-picking the same rows and double-committing)
+//   confirmed  — on-chain tx finalized AND batch_id linked in DB
+//   failed     — last submission attempt errored before submitBatch returned;
+//                safe to reclaim into the next batch
+//   orphaned   — submitBatch threw a confirmation-timeout: tx may already be
+//                on-chain. NEVER auto-rebatch; requires manual reconciliation.
+const RECLAIMABLE_STATUSES = ["pending", "failed"];
+
+// Per-plant in-process serialization for runBatch. Prevents the case where
+// cron + a manual POST /blockchain/batch fire simultaneously and both grab
+// the same pending rows, building two identical Merkle roots and double-
+// committing to Cardano.
+const inFlightBatches = new Map();
+
 async function runBatch(plantId) {
-  // Query all pending readings for this plant
+  const existing = inFlightBatches.get(plantId);
+  if (existing) {
+    console.log(`[blockchainRecordService] Batch already running for ${plantId}; awaiting`);
+    return existing;
+  }
+  const promise = runBatchInternal(plantId).finally(() => {
+    inFlightBatches.delete(plantId);
+  });
+  inFlightBatches.set(plantId, promise);
+  return promise;
+}
+
+async function runBatchInternal(plantId) {
+  // Pick up both fresh readings AND previously-failed readings. Without the
+  // `failed` clause, any reading that lost its first commit attempt would be
+  // stranded forever — never re-batched, never visible in rewards.
   const { data: readings, error: queryError } = await supabase
     .from("readings")
     .select("*")
     .eq("household_id", plantId)
-    .eq("blockchain_status", "pending")
+    .in("blockchain_status", RECLAIMABLE_STATUSES)
     .order("ts", { ascending: true });
 
   if (queryError) {
@@ -79,7 +111,7 @@ async function runBatch(plantId) {
   }
 
   if (!readings || readings.length === 0) {
-    console.log(`[blockchainRecordService] No pending readings for ${plantId}`);
+    console.log(`[blockchainRecordService] No reclaimable readings for ${plantId}`);
     return null;
   }
 
@@ -88,7 +120,18 @@ async function runBatch(plantId) {
   const batchSize = readings.length;
   const readingIds = readings.map((r) => r.id);
 
-  // Map DB rows to the format buildMerkleRoot expects
+  // Reserve the rows up-front. If another caller (cron, manual API, retry)
+  // tries to runBatch while we're mid-flight, they will not see these rows
+  // as reclaimable and cannot build a parallel commit.
+  const { error: reserveError } = await supabase
+    .from("readings")
+    .update({ blockchain_status: "submitting" })
+    .in("id", readingIds);
+
+  if (reserveError) {
+    throw new Error(`Reading reservation failed: ${reserveError.message}`);
+  }
+
   const merkleReadings = readings.map((r) => ({
     plantId: r.household_id,
     solarWatts: r.solar_watts,
@@ -103,16 +146,31 @@ async function runBatch(plantId) {
     const result = await submitBatch(plantId, merkleRoot, batchSize, periodStart, periodEnd);
     txHash = result.txHash;
   } catch (err) {
-    // Mark readings as failed so they can be retried or inspected
+    // Distinguish "tx never went out" (safe to retry) from "tx submitted but
+    // not yet confirmed within poll window" (must NOT retry — would double-
+    // commit if it confirms later).
+    const isConfirmationTimeout = /not confirmed after/i.test(String(err.message || err));
+    const recoveryStatus = isConfirmationTimeout ? "orphaned" : "failed";
+
     await supabase
       .from("readings")
-      .update({ blockchain_status: "failed" })
+      .update({ blockchain_status: recoveryStatus })
       .in("id", readingIds);
+
+    if (isConfirmationTimeout) {
+      console.error(
+        `[blockchainRecordService] Confirmation timeout for ${plantId}. ` +
+        `Readings marked 'orphaned' — DO NOT auto-rebatch. Manual reconciliation required.`
+      );
+    }
     throw err;
   }
 
-  // Insert batch record
-  const { data: batchData, error: batchError } = await supabase
+  // On-chain success: now insert the batch record with the real tx_hash.
+  // If this insert fails the tx is already on-chain — log loudly so operators
+  // can reconcile from the on-chain metadata; readings remain 'submitting'
+  // (never silently re-batched) and require manual intervention.
+  const { data: batchData, error: batchInsertError } = await supabase
     .from("blockchain_batches")
     .insert([
       {
@@ -128,11 +186,15 @@ async function runBatch(plantId) {
     .select()
     .single();
 
-  if (batchError) {
-    throw new Error(`Supabase batch insert failed: ${batchError.message}`);
+  if (batchInsertError) {
+    console.error(
+      `[blockchainRecordService] CRITICAL: tx ${txHash} confirmed on-chain ` +
+      `but batch insert failed: ${batchInsertError.message}. ` +
+      `Readings ${readingIds.join(",")} stuck in 'submitting'. Manual fix required.`
+    );
+    throw new Error(`Batch record insert failed after on-chain commit: ${batchInsertError.message}`);
   }
 
-  // Update readings to confirmed
   const { error: readingsUpdateError } = await supabase
     .from("readings")
     .update({
@@ -155,6 +217,28 @@ async function runBatch(plantId) {
     // blockchain confirmation, not before.
     let computedReward = null;
     try {
+      // Idempotency: if a reward already exists for this batch_id, skip.
+      // Protects against double-credit if runBatch is ever re-invoked for
+      // an already-confirmed batch (e.g., during recovery).
+      const { data: existingReward } = await supabase
+        .from("rewards")
+        .select("id, reward_points")
+        .eq("batch_id", batchData.id)
+        .maybeSingle();
+
+      if (existingReward) {
+        console.log(
+          `[blockchainRecordService] Reward already recorded for batch ${batchData.id}; skipping`
+        );
+        return {
+          merkleRoot,
+          txHash,
+          confirmed: true,
+          batchSize,
+          reward: Number(existingReward.reward_points),
+        };
+      }
+
       const energySavedKwh = readingsToKwh(readings);
       const baselineKwh = await getBaselineKwh(plantId);
       const networkDemandKw = Number(process.env.NETWORK_DEMAND_KW || 0);

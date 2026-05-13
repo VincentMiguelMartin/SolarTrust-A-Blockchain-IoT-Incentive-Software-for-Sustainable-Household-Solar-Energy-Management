@@ -17,8 +17,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "Menu">;
 export default function MenuScreen({ navigation }: Props) {
   const { logout } = useContext(AuthContext);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigation.replace("Login");
   };
 

@@ -72,8 +72,14 @@ async function detectAnomaly(plantId, solarWatts) {
 
   if (error) {
     console.error("[validateEnergy] Supabase fetch error:", error.message);
-    // On query failure, accept the reading to avoid blocking the pipeline
-    return { isAnomaly: false, reason: "Supabase query failed; accepted by default" };
+    // Fail-closed: if we cannot verify history, reject. A DB outage must not
+    // silently bypass anomaly screening — that would let tampered or wildly
+    // out-of-range values reach the ledger during the exact window when our
+    // integrity check is blind.
+    return {
+      isAnomaly: true,
+      reason: `History query failed: ${error.message}`,
+    };
   }
 
   const history = (rows || []).map((r) => r.solar_watts);

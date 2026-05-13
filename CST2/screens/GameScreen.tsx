@@ -24,6 +24,7 @@ import {
   GRID_SIZE,
 } from "../lib/gameEngine";
 import { sendGameCompletion } from "../services/gameService";
+import { useEnergy } from "../context/EnergyContext";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const MAX_BOARD_WIDTH = 340;
@@ -196,6 +197,7 @@ function GameCell({
 }
 
 export default function GameScreen({ navigation }: any) {
+  const { selectedPlantId } = useEnergy();
   const [grid, setGrid] = useState<DebrisCell[]>(generateGrid());
   const [score, setScore] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -255,16 +257,21 @@ export default function GameScreen({ navigation }: any) {
         Haptics.NotificationFeedbackType.Success
       );
 
-      try {
-        const response = await sendGameCompletion({
-          householdId: "test-household-001",
-          cleanliness: 100,
-          score: newScore,
-        });
+      const plantId = selectedPlantId.trim();
+      if (plantId) {
+        try {
+          const response = await sendGameCompletion({
+            householdId: plantId,
+            cleanliness: 100,
+            score: newScore,
+          });
 
-        console.log("Backend response:", response);
-      } catch (error) {
-        console.error("API error:", error);
+          console.log("Backend response:", response);
+        } catch (error) {
+          console.error("API error:", error);
+        }
+      } else {
+        console.warn("No plant selected; game session not recorded.");
       }
 
       setShowModal(true);

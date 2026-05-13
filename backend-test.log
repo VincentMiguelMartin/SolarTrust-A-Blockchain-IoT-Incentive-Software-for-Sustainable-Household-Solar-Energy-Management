@@ -42,3 +42,9 @@ Running file: D:\SolarTrust-A-Blockchain-IoT-Incentive-Software-for-Sustainable-
 [blockchainService] Fee: 0.175049 ADA
 [blockchainRecordService] Reward = 20.79 pts | kWh=4.990 Wt=0.8 Wn=0.650 Wb=0.801 (baseline=867.8593661186508)
 [game] Session recorded for blackbox-household-001, score: 900, cleanliness: 95%
+[tanekoCron] Fetching Taneko data for TTC60011...
+[tanekoCron] Reading accepted — solarWatts: 10360W, zScore: 1.5381794718424415
+[blockchainRecordService] T1 payload received: 2026-05-12T08:30:04.725Z
+[blockchainRecordService] T2 stored: 2026-05-12T08:30:05.683Z
+[blockchainRecordService] IoT Ingestion Latency (T1→T2): 958ms
+[tanekoCron] Recorded reading — id: 398aeb53-c241-4aa7-b559-5c7452d01e47, hash: ad05b633294ca52290d15972ecc3eb0131c8b118c140fedf0d2d308090fe3774
