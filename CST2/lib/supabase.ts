@@ -13,3 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 })
+
+supabase.auth.getSession().catch(async () => {
+  await supabase.auth.signOut()
+})
