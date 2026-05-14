@@ -317,6 +317,22 @@ export default function GameScreen({ navigation }: any) {
           Clean the solar panel to earn points and complete the maintenance task.
         </Text>
 
+        <View style={styles.instructionsCard}>
+          <Text style={styles.instructionsTitle}>How to Play:</Text>
+          <Text style={styles.instructionText}>
+            • Tap on debris (leaves, branches, dust, bird droppings) to clean them
+          </Text>
+          <Text style={styles.instructionText}>
+            • Each piece of debris gives you points based on its type
+          </Text>
+          <Text style={styles.instructionText}>
+            • Clean everything to reach 100% cleanliness and complete the task
+          </Text>
+          <Text style={styles.instructionText}>
+            • The game resets daily at 1:00 AM Philippine Time
+          </Text>
+        </View>
+
         <View style={styles.statsCard}>
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Score</Text>
@@ -607,5 +623,27 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontWeight: "700",
     fontSize: 15,
+  },
+  instructionsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 22,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  instructionsTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#32702f",
+    marginBottom: 8,
+  },
+  instructionText: {
+    fontSize: 14,
+    color: "#333",
+    marginBottom: 4,
+    lineHeight: 20,
   },
 });

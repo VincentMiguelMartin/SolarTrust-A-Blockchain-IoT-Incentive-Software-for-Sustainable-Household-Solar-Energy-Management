@@ -294,6 +294,9 @@ router.post("/purchase", requireBearerUser, async (req, res) => {
       });
     }
 
+    // Generate reference number: CLEAN + 6-digit random + timestamp suffix
+    const refNumber = `CLEAN-${Math.random().toString().substring(2, 8).padStart(6, "0")}-${Date.now().toString().slice(-4)}`;
+
     const { data: inserted, error: insertError } = await supabase
       .from("store_purchases")
       .insert({
@@ -301,6 +304,8 @@ router.post("/purchase", requireBearerUser, async (req, res) => {
         item_key: itemKey,
         item_name: item.name,
         cost: item.cost,
+        reference_number: refNumber,
+        status: "pending_admin_approval",
       })
       .select()
       .single();
@@ -309,11 +314,30 @@ router.post("/purchase", requireBearerUser, async (req, res) => {
       return res.status(500).json({ error: insertError.message });
     }
 
+    // Create admin notification
+    const { error: notifError } = await supabase
+      .from("notifications")
+      .insert({
+        type: "purchase_request",
+        title: "New Free Cleaning Request",
+        message: `User from household ${householdId} has requested free cleaning service. Reference: ${refNumber}`,
+        reference_number: refNumber,
+        household_id: householdId,
+        is_admin_only: true,
+        status: "unread",
+      });
+
+    if (notifError) {
+      console.warn("Failed to create admin notification:", notifError.message);
+    }
+
     const newTotal = available - item.cost;
 
     res.json({
       success: true,
       purchase: inserted,
+      referenceNumber: refNumber,
+      status: "pending_admin_approval",
       totalPoints: Math.round(newTotal * 100) / 100,
     });
   } catch (e) {

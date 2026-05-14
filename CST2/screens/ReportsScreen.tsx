@@ -36,6 +36,14 @@ type DayBucket = {
   confirmedCount: number;
 };
 
+type MonthBucket = {
+  month: string;
+  label: string;
+  totalKwh: number;
+  count: number;
+  confirmedCount: number;
+};
+
 function toDateInputValue(date: Date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -54,6 +62,15 @@ function formatDayLabel(ymd: string) {
     weekday: "short",
     month: "short",
     day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatMonthLabel(monthKey: string) {
+  const [year, month] = monthKey.split("-");
+  const d = new Date(Number(year), Number(month) - 1, 1);
+  return d.toLocaleDateString(undefined, {
+    month: "long",
     year: "numeric",
   });
 }
@@ -219,6 +236,62 @@ export default function ReportsScreen() {
     return result;
   }, [records]);
 
+  const monthBuckets = useMemo<MonthBucket[]>(() => {
+    const map: Record<string, HistoryRecord[]> = {};
+    for (const r of records) {
+      if (!r.ts) continue;
+      const d = new Date(r.ts);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(r);
+    }
+    const result: MonthBucket[] = Object.keys(map).map((month) => {
+      const sorted = [...map[month]].sort(
+        (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime()
+      );
+      const [year, monthNumber] = month.split("-");
+      const label = new Date(Number(year), Number(monthNumber) - 1, 1).toLocaleDateString(undefined, {
+        month: "long",
+        year: "numeric",
+      });
+      return {
+        month,
+        label,
+        totalKwh: readingsToKwh(sorted),
+        count: sorted.length,
+        confirmedCount: sorted.filter(
+          (r) => (r.blockchainStatus || "").toLowerCase() === "confirmed"
+        ).length,
+      };
+    });
+    result.sort((a, b) => (a.month < b.month ? 1 : -1));
+    return result;
+  }, [records]);
+
+  const monthComparison = useMemo(() => {
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthKey = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+    const current = monthBuckets.find((bucket) => bucket.month === currentMonthKey);
+    const previous = monthBuckets.find((bucket) => bucket.month === lastMonthKey);
+    const currentKwh = current?.totalKwh ?? 0;
+    const previousKwh = previous?.totalKwh ?? 0;
+    const deltaKwh = currentKwh - previousKwh;
+    const percentChange = previousKwh === 0 ? null : (deltaKwh / previousKwh) * 100;
+    return {
+      current,
+      previous,
+      currentKwh,
+      previousKwh,
+      deltaKwh,
+      percentChange,
+      currentLabel: formatMonthLabel(currentMonthKey),
+      previousLabel: formatMonthLabel(lastMonthKey),
+    };
+  }, [monthBuckets]);
+
   const summary = useMemo(() => {
     let totalKwh = 0;
     let totalReadings = 0;
@@ -248,6 +321,18 @@ export default function ReportsScreen() {
     const toLabel = toDate ? formatDisplayDate(toDate) : "—";
     const plantLabel = escapeHtml(selectedPlantId || "Unknown");
     const generatedAt = new Date().toLocaleString();
+
+    const monthRows = monthBuckets
+      .map((bucket) => {
+        return `
+          <tr>
+            <td>${escapeHtml(bucket.label)}</td>
+            <td style="text-align:right;">${bucket.totalKwh.toFixed(2)} kWh</td>
+            <td>${bucket.count}</td>
+            <td>${bucket.confirmedCount}</td>
+          </tr>`;
+      })
+      .join("");
 
     const dayRows = buckets
       .map((bucket) => {
@@ -299,9 +384,9 @@ export default function ReportsScreen() {
             .tile { flex: 1; background: #1a1a1a; color: #fff; padding: 12px; border-radius: 8px; text-align: center; }
             .tile .value { color: #7ec47a; font-size: 18px; font-weight: 800; }
             .tile .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
-            section.day { margin-bottom: 18px; page-break-inside: avoid; }
-            section.day h3 { color: #32702f; margin: 0 0 4px; font-size: 15px; }
-            .day-meta { color: #555; font-size: 12px; margin: 0 0 8px; }
+            section.comparison, section.months, section.day { margin-bottom: 18px; page-break-inside: avoid; }
+            section.comparison h2, section.months h2, section.day h3 { color: #32702f; margin: 0 0 4px; font-size: 17px; }
+            .month-meta, .day-meta, .comparison-note { color: #555; font-size: 12px; margin: 0 0 8px; }
             table { width: 100%; border-collapse: collapse; font-size: 12px; }
             th, td { border: 1px solid #d7d7d7; padding: 6px 8px; }
             th { background: #f1f1f1; text-align: left; }
@@ -329,6 +414,54 @@ export default function ReportsScreen() {
               <div class="label">Confirmed</div>
             </div>
           </div>
+
+          <section class="comparison">
+            <h2>Month-over-Month Comparison</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th style="text-align:right;">Total kWh</th>
+                  <th>Readings</th>
+                  <th>Confirmed</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>${escapeHtml(monthComparison.previousLabel)}</td>
+                  <td style="text-align:right;">${monthComparison.previousKwh.toFixed(2)}</td>
+                  <td>${monthComparison.previous?.count ?? 0}</td>
+                  <td>${monthComparison.previous?.confirmedCount ?? 0}</td>
+                </tr>
+                <tr>
+                  <td>${escapeHtml(monthComparison.currentLabel)}</td>
+                  <td style="text-align:right;">${monthComparison.currentKwh.toFixed(2)}</td>
+                  <td>${monthComparison.current?.count ?? 0}</td>
+                  <td>${monthComparison.current?.confirmedCount ?? 0}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="comparison-note">
+              ${monthComparison.percentChange === null
+                ? "No comparison available for previous month."
+                : `Change: ${monthComparison.deltaKwh.toFixed(2)} kWh (${monthComparison.percentChange.toFixed(1)}%).`}
+            </p>
+          </section>
+
+          <section class="months">
+            <h2>Monthly Totals</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th style="text-align:right;">Total kWh</th>
+                  <th>Readings</th>
+                  <th>Confirmed</th>
+                </tr>
+              </thead>
+              <tbody>${monthRows}</tbody>
+            </table>
+          </section>
 
           ${dayRows || '<p style="color:#555;">No readings in this range.</p>'}
         </body>

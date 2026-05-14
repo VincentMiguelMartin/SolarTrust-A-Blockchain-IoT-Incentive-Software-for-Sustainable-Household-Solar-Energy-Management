@@ -684,7 +684,11 @@ const styles = StyleSheet.create({
 
   iconButton: {
     marginLeft: 18,
-    padding: 4,
+    padding: 8,
+    minWidth: 40,
+    minHeight: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   title: {

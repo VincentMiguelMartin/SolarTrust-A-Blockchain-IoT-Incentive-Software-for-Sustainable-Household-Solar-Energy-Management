@@ -23,6 +23,8 @@ export default function StoreScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [purchasing, setPurchasing] = useState(false);
+  const [referenceNumber, setReferenceNumber] = useState<string>("");
+  const [purchaseStatus, setPurchaseStatus] = useState<"idle" | "success">("idle");
 
   const loadPoints = useCallback(async () => {
     try {
@@ -110,7 +112,16 @@ export default function StoreScreen() {
 
       const newTotal = Number(body?.totalPoints);
       setPoints(Number.isFinite(newTotal) ? newTotal : points);
-      Alert.alert("Success", "Free cleaning redeemed!");
+      
+      // Set reference number and show success status
+      const refNum = body?.referenceNumber || "N/A";
+      setReferenceNumber(refNum);
+      setPurchaseStatus("success");
+      
+      Alert.alert(
+        "Request Submitted!",
+        `Your free cleaning request has been submitted.\n\nReference Number: ${refNum}\n\nPlease wait for admin confirmation. You'll receive a notification once your request is approved.`
+      );
     } catch (e) {
       Alert.alert(
         "Purchase failed",
@@ -171,6 +182,26 @@ export default function StoreScreen() {
           </Text>
         )}
       </View>
+
+      {/* PURCHASE SUCCESS CARD */}
+      {purchaseStatus === "success" && referenceNumber && (
+        <View style={styles.successCard}>
+          <MaterialIcons name="check-circle" size={28} color="#32702f" />
+          <View style={styles.successContent}>
+            <Text style={styles.successTitle}>Request Submitted!</Text>
+            <Text style={styles.successText}>
+              Your free cleaning request is pending admin approval.
+            </Text>
+            <View style={styles.referenceBox}>
+              <Text style={styles.referenceLabel}>Reference Number:</Text>
+              <Text style={styles.referenceNumber}>{referenceNumber}</Text>
+            </View>
+            <Text style={styles.successNote}>
+              You'll receive a notification once the admin confirms your request.
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* ITEMS */}
       <View style={styles.itemsArea}>
