@@ -342,6 +342,38 @@ const approveRequest = async (request: any) => {
   }
 };
 
+const rejectRequest = async (request: any) => {
+  try {
+    const { error } = await supabase
+      .from("reward_redemptions")
+      .update({
+        status: "rejected",
+      })
+      .eq("id", request.id);
+
+    if (error) {
+      Alert.alert("Error", error.message);
+      return;
+    }
+
+    await supabase.from("notifications").insert([
+      {
+        user_id: request.user_id,
+        title: "Reward Rejected",
+        message:
+          "Your free cleaning request was rejected by the admin.",
+        type: "reward",
+      },
+    ]);
+
+    Alert.alert("Request Rejected");
+
+    fetchPendingRequests();
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 useEffect(() => {
   fetchPendingRequests();
 }, []);
@@ -736,9 +768,9 @@ useEffect(() => {
     {pendingRequests.length === 0 ? (
       <Text>No pending requests</Text>
     ) : (
-      pendingRequests.map((request) => (
+      pendingRequests.map((request, index) => (
         <View
-          key={request.id}
+          key={`${request.id}-${index}`}
           style={{
             backgroundColor: "#f5f5f5",
             padding: 12,
@@ -746,30 +778,68 @@ useEffect(() => {
             marginBottom: 10,
           }}
         >
-
-          <Text>Reward: {request.reward_name}</Text>
-
-          <Text>Points: {request.points_used}</Text>
-
-          <TouchableOpacity
+          <Text
             style={{
-              backgroundColor: "#32702f",
-              padding: 10,
-              borderRadius: 8,
+              fontWeight: "bold",
+              fontSize: 15,
+              marginBottom: 4,
+            }}
+          >
+            {request.reward_name}
+          </Text>
+
+          <Text>Plant: {request.plant_id}</Text>
+
+          <Text>Points Used: {request.points_used}</Text>
+
+          <View
+            style={{
+              flexDirection: "row",
               marginTop: 10,
             }}
-            onPress={() => approveRequest(request)}
           >
-            <Text
+            <TouchableOpacity
               style={{
-                color: "#fff",
-                textAlign: "center",
-                fontWeight: "bold",
+                flex: 1,
+                backgroundColor: "#32702f",
+                padding: 10,
+                borderRadius: 8,
+                marginRight: 6,
               }}
+              onPress={() => approveRequest(request)}
             >
-              Approve
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={{
+                  color: "#fff",
+                  textAlign: "center",
+                  fontWeight: "bold",
+                }}
+              >
+                Approve
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: "#d32f2f",
+                padding: 10,
+                borderRadius: 8,
+                marginLeft: 6,
+              }}
+              onPress={() => rejectRequest(request)}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  textAlign: "center",
+                  fontWeight: "bold",
+                }}
+              >
+                Reject
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ))
     )}
