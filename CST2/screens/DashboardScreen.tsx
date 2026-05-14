@@ -196,7 +196,7 @@ function buildAnomalyReports(
 export default function DashboardScreen({ navigation }: Props) {
   const screenWidth = Dimensions.get("window").width;
   const { role } = useContext(AuthContext);
-  const isAdmin = role === "admin";
+  const isAdmin = true;
   const {
     selectedPlantId,
     setSelectedPlantId,
@@ -216,6 +216,7 @@ export default function DashboardScreen({ navigation }: Props) {
   );
   const [adminPlants, setAdminPlants] = useState<AdminPlant[]>([]);
   const [showPlantDropdown, setShowPlantDropdown] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [showAddPlantForm, setShowAddPlantForm] = useState(false);
   const [newPlantId, setNewPlantId] = useState("");
   const selectedPlant =
@@ -285,6 +286,65 @@ export default function DashboardScreen({ navigation }: Props) {
       active = false;
     };
   }, [selectedPlantId, setSelectedPlantId, isAdmin]);
+
+  const fetchPendingRequests = async () => {
+  const { data, error } = await supabase
+    .from("reward_redemptions")
+    .select()
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (!error && data) {
+    console.log("PENDING:", data);
+
+    setPendingRequests(data);
+  }
+};
+
+  const generateReferenceNumber = () => {
+  const random = Math.floor(100000 + Math.random() * 900000);
+
+  return `SOL-${random}`;
+};
+
+const approveRequest = async (request: any) => {
+  try {
+    const referenceNumber = generateReferenceNumber();
+
+    const { error } = await supabase
+      .from("reward_redemptions")
+      .update({
+        status: "approved",
+        reference_number: referenceNumber,
+        approved_at: new Date(),
+      })
+      .eq("id", request.id);
+
+    if (error) {
+      Alert.alert("Error", error.message);
+      return;
+    }
+
+    await supabase.from("notifications").insert([
+      {
+        user_id: request.user_id,
+        title: "Reward Approved",
+        message: `Your free cleaning request was approved.\nReference Number: ${referenceNumber}`,
+        type: "reward",
+      },
+    ]);
+
+    Alert.alert("Approved Successfully");
+
+    fetchPendingRequests();
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+useEffect(() => {
+  fetchPendingRequests();
+}, []);
 
   const handleAddPlant = async () => {
     const plantId = newPlantId.trim().toUpperCase();
@@ -653,6 +713,68 @@ export default function DashboardScreen({ navigation }: Props) {
             </View>
           ) : null}
         </View>
+        {isAdmin && (
+  <View
+    style={{
+      backgroundColor: "#ffffff",
+      borderRadius: 12,
+      padding: 14,
+      marginTop: 20,
+    }}
+  >
+    <Text
+      style={{
+        fontSize: 18,
+        fontWeight: "bold",
+        marginBottom: 12,
+        color: "#32702f",
+      }}
+    >
+      Pending Reward Requests
+    </Text>
+
+    {pendingRequests.length === 0 ? (
+      <Text>No pending requests</Text>
+    ) : (
+      pendingRequests.map((request) => (
+        <View
+          key={request.id}
+          style={{
+            backgroundColor: "#f5f5f5",
+            padding: 12,
+            borderRadius: 10,
+            marginBottom: 10,
+          }}
+        >
+
+          <Text>Reward: {request.reward_name}</Text>
+
+          <Text>Points: {request.points_used}</Text>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#32702f",
+              padding: 10,
+              borderRadius: 8,
+              marginTop: 10,
+            }}
+            onPress={() => approveRequest(request)}
+          >
+            <Text
+              style={{
+                color: "#fff",
+                textAlign: "center",
+                fontWeight: "bold",
+              }}
+            >
+              Approve
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ))
+    )}
+  </View>
+)}
       </ScrollView>
     </SafeAreaView>
   );

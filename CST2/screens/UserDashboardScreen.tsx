@@ -401,39 +401,43 @@ export default function UserDashboardScreen({ navigation }: Props) {
         <Text style={styles.details}>Click the Graph for Statistics Tab</Text>
 
         <View style={styles.plantSelector}>
-          <View style={styles.plantDisplay}>
-            <View style={styles.plantTextGroup}>
-              <Text style={styles.plantLabel}>Current Plant</Text>
-              <Text style={styles.plantName}>{userPlant.name}</Text>
-              <Text style={styles.plantId}>
-                Plant ID: {userPlant.id || "Empty"}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.plantInfoButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                if (!userPlant.id) {
-                  Alert.alert("Plant ID is empty", "Add your Plant ID first.");
-                  return;
-                }
+<View style={styles.plantSelectorActions}>
+  <View style={styles.plantSelectButton}>
+    <View style={styles.plantSelectText}>
+      <Text style={styles.plantSelectLabel}>Current Plant</Text>
 
-                Alert.alert(userPlant.name, `Plant ID: ${userPlant.id}`);
-              }}
-            >
-              <MaterialIcons name="info-outline" size={22} color="#32702f" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.addPlantButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                setNewPlantId(userPlant.id);
-                setShowAddPlantForm((current) => !current);
-              }}
-            >
-              <MaterialIcons name="add" size={22} color="#ffffff" />
-            </TouchableOpacity>
-          </View>
+      <Text style={styles.plantSelectValue}>
+        {userPlant.name}
+      </Text>
+    </View>
+  </View>
+
+  <TouchableOpacity
+    style={styles.plantInfoButton}
+    activeOpacity={0.85}
+    onPress={() => {
+      if (!userPlant.id) {
+        Alert.alert("Plant ID is empty", "Add your Plant ID first.");
+        return;
+      }
+
+      Alert.alert(userPlant.name, `Plant ID: ${userPlant.id}`);
+    }}
+  >
+    <MaterialIcons name="info-outline" size={22} color="#32702f" />
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={styles.addPlantButton}
+    activeOpacity={0.85}
+    onPress={() => {
+      setNewPlantId(userPlant.id);
+      setShowAddPlantForm((current) => !current);
+    }}
+  >
+    <MaterialIcons name="add" size={22} color="#ffffff" />
+  </TouchableOpacity>
+</View>
 
           {showAddPlantForm ? (
             <View style={styles.addPlantForm}>
@@ -649,41 +653,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
 
-  plantDisplay: {
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    elevation: 2,
-  },
-
-  plantTextGroup: {
-    flex: 1,
-    paddingRight: 10,
-  },
-
-  plantLabel: {
-    color: "#555555",
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 3,
-  },
-
-  plantName: {
-    color: "#1f1f1f",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-
-  plantId: {
-    color: "#555555",
-    fontSize: 12,
-    marginTop: 3,
-  },
-
   plantInfoButton: {
     width: 42,
     height: 42,
@@ -870,4 +839,40 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 12,
   },
+
+  plantSelectorActions: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+plantSelectButton: {
+  width: "70%",
+  marginRight: 6,
+  backgroundColor: "#ffffff",
+  borderRadius: 8,
+  paddingVertical: 12,
+  paddingHorizontal: 14,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  elevation: 2,
+},
+
+plantSelectText: {
+  flex: 1,
+  paddingRight: 8,
+},
+
+plantSelectLabel: {
+  color: "#555555",
+  fontSize: 12,
+  fontWeight: "600",
+  marginBottom: 3,
+},
+
+plantSelectValue: {
+  color: "#1f1f1f",
+  fontSize: 16,
+  fontWeight: "800",
+},
 });

@@ -23,7 +23,6 @@ export default function StoreScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [purchasing, setPurchasing] = useState(false);
-  const [referenceNumber, setReferenceNumber] = useState<string>("");
   const [purchaseStatus, setPurchaseStatus] = useState<"idle" | "success">("idle");
 
   const loadPoints = useCallback(async () => {
@@ -87,41 +86,41 @@ export default function StoreScreen() {
         return;
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/rewards/purchase`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          householdId: plantId,
-          itemKey: "free_cleaning",
-        }),
-      });
+      const { data: userData } = await supabase.auth.getUser();
 
-      const body = await res.json().catch(() => ({}));
+const user = userData.user;
 
-      if (!res.ok) {
-        Alert.alert(
-          "Purchase failed",
-          body?.error || `Unable to redeem (${res.status})`
-        );
-        setPurchasing(false);
-        return;
-      }
+if (!user) {
+  Alert.alert("User not found");
+  setPurchasing(false);
+  return;
+}
 
-      const newTotal = Number(body?.totalPoints);
-      setPoints(Number.isFinite(newTotal) ? newTotal : points);
-      
-      // Set reference number and show success status
-      const refNum = body?.referenceNumber || "N/A";
-      setReferenceNumber(refNum);
-      setPurchaseStatus("success");
-      
-      Alert.alert(
-        "Request Submitted!",
-        `Your free cleaning request has been submitted.\n\nReference Number: ${refNum}\n\nPlease wait for admin confirmation. You'll receive a notification once your request is approved.`
-      );
+const { error: redemptionError } = await supabase
+  .from("reward_redemptions")
+  .insert([
+    {
+      user_id: user.id,
+      plant_id: plantId,
+      reward_name: "Free Cleaning",
+      points_used: FREE_CLEANING_COST,
+      status: "pending",
+    },
+  ]);
+
+if (redemptionError) {
+  Alert.alert("Error", redemptionError.message);
+  setPurchasing(false);
+  return;
+}
+
+Alert.alert(
+  "Request Submitted",
+  "Your cleaning request was sent to admin for approval."
+);
+
+setPurchaseStatus("success");
+
     } catch (e) {
       Alert.alert(
         "Purchase failed",
@@ -182,26 +181,6 @@ export default function StoreScreen() {
           </Text>
         )}
       </View>
-
-      {/* PURCHASE SUCCESS CARD */}
-      {purchaseStatus === "success" && referenceNumber && (
-        <View style={styles.successCard}>
-          <MaterialIcons name="check-circle" size={28} color="#32702f" />
-          <View style={styles.successContent}>
-            <Text style={styles.successTitle}>Request Submitted!</Text>
-            <Text style={styles.successText}>
-              Your free cleaning request is pending admin approval.
-            </Text>
-            <View style={styles.referenceBox}>
-              <Text style={styles.referenceLabel}>Reference Number:</Text>
-              <Text style={styles.referenceNumber}>{referenceNumber}</Text>
-            </View>
-            <Text style={styles.successNote}>
-              You'll receive a notification once the admin confirms your request.
-            </Text>
-          </View>
-        </View>
-      )}
 
       {/* ITEMS */}
       <View style={styles.itemsArea}>
@@ -376,5 +355,62 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 14,
+  },
+
+  successCard: {
+    flexDirection: "row",
+    backgroundColor: "#f0faf0",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#32702f",
+    gap: 12,
+  },
+
+  successContent: {
+    flex: 1,
+  },
+
+  successTitle: {
+    color: "#32702f",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+
+  successText: {
+    color: "#333",
+    fontSize: 13,
+    marginBottom: 12,
+  },
+
+  referenceBox: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#32702f",
+  },
+
+  referenceLabel: {
+    color: "#555",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+
+  referenceNumber: {
+    color: "#32702f",
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily: "monospace",
+  },
+
+  successNote: {
+    color: "#666",
+    fontSize: 12,
+    fontStyle: "italic",
   },
 });
