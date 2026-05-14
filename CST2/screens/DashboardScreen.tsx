@@ -465,6 +465,8 @@ export default function DashboardScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
 
+        <Text style={styles.indicatorNote}>Please wait 15 minutes for indicator</Text>
+
         {lastUpdate ? (
           <Text style={styles.meta}>Last update: {formatLocalDateTime(lastUpdate)}</Text>
         ) : null}
@@ -909,6 +911,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 18,
     marginBottom: 18,
+  },
+
+  indicatorNote: {
+    color: "#555555",
+    textAlign: "center",
+    fontSize: 12,
+    fontStyle: "italic",
+    marginTop: 8,
+    marginBottom: 4,
   },
 
   reportBoard: {

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Platform,
   SafeAreaView,
   Text,
   StyleSheet,
@@ -10,6 +12,8 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import FloatingBackButton from "../components/FloatingBackButton";
 import { getReadingHistory } from "../services/apiService.js";
 import { useEnergy } from "../context/EnergyContext";
@@ -116,6 +120,7 @@ export default function ReportsScreen() {
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [exporting, setExporting] = useState(false);
 
   const onFromChange = (_: any, selectedDate?: Date) => {
     setShowFromPicker(false);
@@ -230,6 +235,146 @@ export default function ReportsScreen() {
     setExpanded((prev) => ({ ...prev, [date]: !prev[date] }));
   };
 
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  const buildReportHtml = () => {
+    const fromLabel = fromDate ? formatDisplayDate(fromDate) : "—";
+    const toLabel = toDate ? formatDisplayDate(toDate) : "—";
+    const plantLabel = escapeHtml(selectedPlantId || "Unknown");
+    const generatedAt = new Date().toLocaleString();
+
+    const dayRows = buckets
+      .map((bucket) => {
+        const readingRows = bucket.readings
+          .map(
+            (r) => `
+              <tr>
+                <td>${escapeHtml(formatTimeOnly(r.ts))}</td>
+                <td style="text-align:right;">${Number(r.solarWatts || 0)} W</td>
+                <td>${escapeHtml(r.blockchainStatus || "pending")}</td>
+              </tr>`
+          )
+          .join("");
+
+        return `
+          <section class="day">
+            <h3>${escapeHtml(formatDayLabel(bucket.date))}</h3>
+            <p class="day-meta">
+              ${bucket.totalKwh.toFixed(2)} kWh •
+              ${bucket.count} reading${bucket.count === 1 ? "" : "s"} •
+              ${bucket.confirmedCount} confirmed
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th style="text-align:right;">Solar Watts</th>
+                  <th>Blockchain Status</th>
+                </tr>
+              </thead>
+              <tbody>${readingRows}</tbody>
+            </table>
+          </section>`;
+      })
+      .join("");
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>SolarTrust Report</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #1f1f1f; padding: 24px; }
+            h1 { color: #32702f; margin: 0 0 4px; }
+            .meta { color: #555; font-size: 12px; margin-bottom: 16px; }
+            .summary { display: flex; gap: 12px; margin-bottom: 20px; }
+            .tile { flex: 1; background: #1a1a1a; color: #fff; padding: 12px; border-radius: 8px; text-align: center; }
+            .tile .value { color: #7ec47a; font-size: 18px; font-weight: 800; }
+            .tile .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+            section.day { margin-bottom: 18px; page-break-inside: avoid; }
+            section.day h3 { color: #32702f; margin: 0 0 4px; font-size: 15px; }
+            .day-meta { color: #555; font-size: 12px; margin: 0 0 8px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #d7d7d7; padding: 6px 8px; }
+            th { background: #f1f1f1; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <h1>SolarTrust History Report</h1>
+          <div class="meta">
+            Plant: ${plantLabel}<br/>
+            Range: ${escapeHtml(fromLabel)} — ${escapeHtml(toLabel)}<br/>
+            Generated: ${escapeHtml(generatedAt)}
+          </div>
+
+          <div class="summary">
+            <div class="tile">
+              <div class="value">${summary.totalKwh.toFixed(2)}</div>
+              <div class="label">Total kWh</div>
+            </div>
+            <div class="tile">
+              <div class="value">${summary.totalReadings}</div>
+              <div class="label">Readings</div>
+            </div>
+            <div class="tile">
+              <div class="value">${summary.confirmed}/${summary.totalReadings}</div>
+              <div class="label">Confirmed</div>
+            </div>
+          </div>
+
+          ${dayRows || '<p style="color:#555;">No readings in this range.</p>'}
+        </body>
+      </html>
+    `;
+  };
+
+  const downloadPdf = async () => {
+    if (!fromDate || !toDate) {
+      Alert.alert("Pick a date range", "Please select both From and To dates first.");
+      return;
+    }
+    if (records.length === 0) {
+      Alert.alert("Nothing to export", "Generate a report with readings before downloading.");
+      return;
+    }
+    try {
+      setExporting(true);
+      const html = buildReportHtml();
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+
+      if (Platform.OS === "web") {
+        Alert.alert("PDF created", uri);
+        return;
+      }
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          dialogTitle: "Save SolarTrust Report",
+          UTI: "com.adobe.pdf",
+        });
+      } else {
+        Alert.alert("PDF saved", `Saved to: ${uri}`);
+      }
+    } catch (e) {
+      Alert.alert(
+        "PDF export failed",
+        e instanceof Error ? e.message : "Unknown error"
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const showEmptyState =
     hasSearched && !loading && !error && records.length === 0;
   const showSummary =
@@ -317,6 +462,21 @@ export default function ReportsScreen() {
           <MaterialIcons name="summarize" size={20} color="#fff" />
           <Text style={styles.reportButtonText}>
             {loading ? "Loading Report..." : "Generate Report"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.downloadButton,
+            (exporting || loading || records.length === 0) &&
+              styles.disabledButton,
+          ]}
+          onPress={downloadPdf}
+          disabled={exporting || loading || records.length === 0}
+        >
+          <MaterialIcons name="picture-as-pdf" size={20} color="#fff" />
+          <Text style={styles.reportButtonText}>
+            {exporting ? "Preparing PDF..." : "Download PDF"}
           </Text>
         </TouchableOpacity>
 
@@ -488,6 +648,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
+    marginBottom: 16,
+    minWidth: 220,
+  },
+
+  downloadButton: {
+    backgroundColor: "#1a1a1a",
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 0,
     marginBottom: 16,
     minWidth: 220,
   },

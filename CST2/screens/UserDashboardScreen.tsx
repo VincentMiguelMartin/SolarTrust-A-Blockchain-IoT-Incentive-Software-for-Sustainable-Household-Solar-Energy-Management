@@ -396,6 +396,8 @@ export default function UserDashboardScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
 
+        <Text style={styles.indicatorNote}>Please wait 15 minutes for indicator</Text>
+
         <Text style={styles.details}>Click the Graph for Statistics Tab</Text>
 
         <View style={styles.plantSelector}>
@@ -632,6 +634,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: -4,
     marginBottom: 18,
+  },
+
+  indicatorNote: {
+    color: "#555555",
+    textAlign: "center",
+    fontSize: 12,
+    fontStyle: "italic",
+    marginTop: 8,
+    marginBottom: 4,
   },
 
   plantSelector: {
