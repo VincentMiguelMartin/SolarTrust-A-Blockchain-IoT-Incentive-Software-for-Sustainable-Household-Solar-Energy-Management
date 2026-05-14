@@ -1,9 +1,9 @@
-★ eas-cli@18.12.2 is now available.
+★ eas-cli@18.12.3 is now available.
 To upgrade, run:
 npm install -g eas-cli
 Proceeding with outdated version.
 
-(node:16232) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(node:280) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 Resolved "preview" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
 No environment variables with visibility "Plain text" and "Sensitive" found for the "preview" environment on EAS.
@@ -16,11 +16,37 @@ No environment variables with visibility "Plain text" and "Sensitive" found for 
 Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
 - Compressing project files
 - Uploading to EAS Build (0 / 2.6 MB)
-✔ Uploaded to EAS 4s
+✔ Uploaded to EAS 12s
 - Computing project fingerprint
-⌛️ Computing the project fingerprint is taking longer than expected...
-⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1
 ✔ Computed project fingerprint
 
-See logs: https://expo.dev/accounts/cstrivago/projects/CST2/builds/0f95f428-d9db-4a8c-b7a4-463fe6ecdb0d
+See logs: https://expo.dev/accounts/cstrivago/projects/CST2/builds/6e271136-d8aa-4c4d-a7bb-2e25da5b8efc
 
+Waiting for build to complete. You can press Ctrl+C to exit.
+- Waiting for build to complete.
+✔ Build finished
+
+  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  █ ▄▄▄▄▄ █▄▄████▀█▄▀▄▄  █ ▀█▀█▄█ ▄▄▄▄▄ █
+  █ █   █ █ ▀█ ▄ ▄▀█▀▄ ▀█      ▀█ █   █ █
+  █ █▄▄▄█ █▄ ▄▄▀▀▀▄▄▄█ ▄█▄███ ▄▄█ █▄▄▄█ █
+  █▄▄▄▄▄▄▄█▄▀▄▀▄█▄█ ▀ █▄█ █▄█▄█▄█▄▄▄▄▄▄▄█
+  █▄▄ ▄██▄█ ▀████▄██ ▀ ▀▄█▀ ▀▄▄ ▄█▀▄  ▀▄█
+  █▄▀█▄ █▄▀██ ▀▀ ▄▀▀▄ ▀▀██▄▀ ▀▀▀ ▀ ▄█  ▀█
+  ██▄ ▀▀ ▄ ▄▄█ █ █ ▄   ▀▀▄▀▀ ▀    ▀   █ █
+  █▀▀█▄▀█▄▀▀▄▄█ ▄█▀▀█  ▀▀█▀ █ ▀ ▀█▀  █▄▀█
+  █▄ ▀█  ▄█▄ █▄▀ █▀██▄██▄ ▄  ▀▀▄█▀▀█▀▄ ▀█
+  █▀▀ ██▄▄▄▀█▀▄ █▄ █  ▀ ▄▄███▀ ▄▄▀▀ ▀▄ ▄█
+  █▀█  ▄█▄ ▀ █▄ █▄██▄█ ▄ ▀███ █▀ █▀▄██ ██
+  ██▄██▀▄▄ ▄▄ ▄▄ ██▄▄▄▀█▄█   ▄▀ ▀█▄▄ ▀███
+  █▄▄▄█ ▄▄▀█▀▀▀ ▄ ▀█ █▀ ▀█▄▄   ▀  ▀ █ ▄ █
+  █▀▄▀██▄▄▀▀█  ██▀█▄█ ▄▄ ▀▀ █ █▀▄▄ ██▄▄▀█
+  ████▄▄█▄█▀▄▄█▄█▄▀█▀███▄█  ▄█▄ ▄▄▄ ▄ ▄ █
+  █ ▄▄▄▄▄ ██▄█▀█   █▀▀▀▄█▄▀ ▄▀█ █▄█  █▄▄█
+  █ █   █ █▀▀▄██▄▄█ ▄  ▄ █▀▄█▄█   ▄ █▀  █
+  █ █▄▄▄█ █ █▀▀▀▀ ▀▄▄▀█▄█▄ ▄▀▀▀█▀▄  ▄ ███
+  █▄▄▄▄▄▄▄█▄█▄▄███▄▄▄▄█▄███▄▄▄███▄▄▄▄▄▄▄█
+
+
+🤖 Open this link on your Android devices (or scan the QR code) to install the app:
+https://expo.dev/accounts/cstrivago/projects/CST2/builds/6e271136-d8aa-4c4d-a7bb-2e25da5b8efc
