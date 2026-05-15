@@ -1,0 +1,165 @@
+{
+  "runId": "E2E_1778767709627",
+  "timestamp": "2026-05-14T14:14:41.395Z",
+  "testFile": "e2e-pipeline.test.js",
+  "config": {
+    "nBatches": 5,
+    "readingsPerBatch": 3,
+    "baseUrl": "http://localhost:3000"
+  },
+  "results": [
+    {
+      "tcId": "TC-BL-01",
+      "name": "Batch latency T3→T4: N=5 >= 5 samples",
+      "passed": true,
+      "detail": "mean=24.9s sd=14.0s min=18.3s max=49.9s",
+      "durationMs": 0.07
+    },
+    {
+      "tcId": "TC-BL-02",
+      "name": "On-chain verification: 5/5 label-674 roots match",
+      "passed": true,
+      "detail": "5/5 verified",
+      "durationMs": 0.04
+    },
+    {
+      "tcId": "TC-BL-03",
+      "name": "Tamper detection: 5/5 altered roots differ",
+      "passed": true,
+      "detail": "5/5 detected",
+      "durationMs": 0.04
+    },
+    {
+      "tcId": "TC-BL-04",
+      "name": "Tx fee captured from Blockfrost API: N=5 >= 5",
+      "passed": true,
+      "detail": "mean=0.175894 ADA sd=0.000048 ADA",
+      "durationMs": 0.05
+    }
+  ],
+  "cycleDetails": [
+    {
+      "cycle": 1,
+      "householdId": "E2E_1778767709627_C1",
+      "readingsPerBatch": 3,
+      "t3Iso": "2026-05-14T14:08:30.266Z",
+      "t4Iso": "2026-05-14T14:08:49.113Z",
+      "batchMs": 18846.15,
+      "latencyS": 18.85,
+      "merkleRoot": "c214f669b2dba214b67e6db43577e029aac724b5cc09e1c4f4788d77488f00ab",
+      "txHash": "412917383af6be3886f07be7cfef5bb5dbff072a4f0edd4f4eff9e5827d765e6",
+      "batchSize": 3,
+      "allConfirmed": true,
+      "allHaveRoot": true,
+      "onChainRoot": "c214f669b2dba214b67e6db43577e029aac724b5cc09e1c4f4788d77488f00ab",
+      "onChainMatch": true,
+      "feeLovelace": 175929,
+      "feeAda": 0.175929,
+      "tamperDetected": true
+    },
+    {
+      "cycle": 2,
+      "householdId": "E2E_1778767709627_C2",
+      "readingsPerBatch": 3,
+      "t3Iso": "2026-05-14T14:09:50.441Z",
+      "t4Iso": "2026-05-14T14:10:09.216Z",
+      "batchMs": 18775.16,
+      "latencyS": 18.78,
+      "merkleRoot": "205a6904186cd7051515ecb198e0f003a7a52e520af039416479168e4e3287d4",
+      "txHash": "d2d203913bd4064b6cfac7d9939438106c4a7b6332b940bc18ab8cff8f984199",
+      "batchSize": 3,
+      "allConfirmed": true,
+      "allHaveRoot": true,
+      "onChainRoot": "205a6904186cd7051515ecb198e0f003a7a52e520af039416479168e4e3287d4",
+      "onChainMatch": true,
+      "feeLovelace": 175929,
+      "feeAda": 0.175929,
+      "tamperDetected": true
+    },
+    {
+      "cycle": 3,
+      "householdId": "E2E_1778767709627_C3",
+      "readingsPerBatch": 3,
+      "t3Iso": "2026-05-14T14:11:10.631Z",
+      "t4Iso": "2026-05-14T14:12:00.498Z",
+      "batchMs": 49864.28,
+      "latencyS": 49.86,
+      "merkleRoot": "205a27176773d52379853895db1565017024054490eeafc59cb4f6da3a92b27e",
+      "txHash": "6e189a5aaabd2f2958e1c487a9ec11497106308cca5ec283d9c9686b446476f1",
+      "batchSize": 3,
+      "allConfirmed": true,
+      "allHaveRoot": true,
+      "onChainRoot": "205a27176773d52379853895db1565017024054490eeafc59cb4f6da3a92b27e",
+      "onChainMatch": true,
+      "feeLovelace": 175841,
+      "feeAda": 0.175841,
+      "tamperDetected": true
+    },
+    {
+      "cycle": 4,
+      "householdId": "E2E_1778767709627_C4",
+      "readingsPerBatch": 3,
+      "t3Iso": "2026-05-14T14:13:01.543Z",
+      "t4Iso": "2026-05-14T14:13:20.304Z",
+      "batchMs": 18760.97,
+      "latencyS": 18.76,
+      "merkleRoot": "7410b7c4df6ea9da8449adf04b7ab0db63fea11070338d1dd0d98b8b7e466cbf",
+      "txHash": "415c104204fe0c3c022a1f03a0470e3dba5aa7e505f2abd6991820e6ece13179",
+      "batchSize": 3,
+      "allConfirmed": true,
+      "allHaveRoot": true,
+      "onChainRoot": "7410b7c4df6ea9da8449adf04b7ab0db63fea11070338d1dd0d98b8b7e466cbf",
+      "onChainMatch": true,
+      "feeLovelace": 175841,
+      "feeAda": 0.175841,
+      "tamperDetected": true
+    },
+    {
+      "cycle": 5,
+      "householdId": "E2E_1778767709627_C5",
+      "readingsPerBatch": 3,
+      "t3Iso": "2026-05-14T14:14:21.420Z",
+      "t4Iso": "2026-05-14T14:14:39.728Z",
+      "batchMs": 18305.21,
+      "latencyS": 18.31,
+      "merkleRoot": "4a34a8ae37e91a04de0b7d4a74e5c22c2d4c4f4d8c2c94cdaf9c5d3574ff5aa2",
+      "txHash": "a999cf09677cfd50c6d44c8ba67d6d1ceb14e4cc18848f3e02c432ddec0be433",
+      "batchSize": 3,
+      "allConfirmed": true,
+      "allHaveRoot": true,
+      "onChainRoot": "4a34a8ae37e91a04de0b7d4a74e5c22c2d4c4f4d8c2c94cdaf9c5d3574ff5aa2",
+      "onChainMatch": true,
+      "feeLovelace": 175929,
+      "feeAda": 0.175929,
+      "tamperDetected": true
+    }
+  ],
+  "batchLatency": {
+    "mean": 24910.35,
+    "sd": 13951.31,
+    "min": 18305.21,
+    "max": 49864.28,
+    "n": 5
+  },
+  "transactionFee": {
+    "lovelace": {
+      "mean": 175893.8,
+      "sd": 48.2,
+      "min": 175841,
+      "max": 175929,
+      "n": 5
+    },
+    "ada": {
+      "mean": 0.175894,
+      "sd": 0.000048,
+      "min": 0.175841,
+      "max": 0.175929,
+      "n": 5
+    }
+  },
+  "summary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0
+  }
+}

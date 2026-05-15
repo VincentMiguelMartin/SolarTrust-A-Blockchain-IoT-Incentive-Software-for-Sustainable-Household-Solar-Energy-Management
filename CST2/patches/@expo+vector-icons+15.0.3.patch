@@ -1,8 +1,8 @@
 diff --git a/node_modules/@expo/vector-icons/build/createIconSet.js b/node_modules/@expo/vector-icons/build/createIconSet.js
-index 48982ea..5f75064 100644
+index 48982ea..fd5a847 100644
 --- a/node_modules/@expo/vector-icons/build/createIconSet.js
 +++ b/node_modules/@expo/vector-icons/build/createIconSet.js
-@@ -53,14 +53,12 @@ export default function (glyphMap, fontName, expoAssetId, fontStyle) {
+@@ -53,14 +53,13 @@ export default function (glyphMap, fontName, expoAssetId, fontStyle) {
          _mounted = false;
          _icon;
          state = {
@@ -17,6 +17,7 @@ index 48982ea..5f75064 100644
 -                this._mounted && this.setState({ fontIsLoaded: true });
 +            if (!Font.isLoaded(fontName)) {
 +                try { await Font.loadAsync(font); } catch (e) { /* font embedded via plugin */ }
++                this._mounted && this.forceUpdate();
              }
          }
          componentWillUnmount() {

@@ -125,6 +125,7 @@ async function main() {
 
     // Step 2: Trigger batch — measure T3→T4
     console.log(`  [2] POST /blockchain/batch — waiting for Cardano confirmation...`);
+    const t3Iso = new Date().toISOString();
     const t3 = performance.now();
     const batchRes = await axios.post(
       `${BASE_URL}/blockchain/batch`,
@@ -132,6 +133,7 @@ async function main() {
       { timeout: 10 * 60 * 1000 }
     );
     const t4 = performance.now();
+    const t4Iso = new Date().toISOString();
     const batchMs = +(t4 - t3).toFixed(2);
     batchLatencies.push(batchMs);
 
@@ -187,7 +189,11 @@ async function main() {
     cycleDetails.push({
       cycle,
       householdId: cycleHH,
+      readingsPerBatch: READINGS_PER_BATCH,
+      t3Iso,
+      t4Iso,
       batchMs,
+      latencyS: +(batchMs / 1000).toFixed(2),
       merkleRoot,
       txHash,
       batchSize,
@@ -199,6 +205,16 @@ async function main() {
       feeAda: feeLovelace ? +(feeLovelace / 1_000_000).toFixed(6) : null,
       tamperDetected: tamperOk,
     });
+
+    // Inter-cycle delay: give Lucid's UTXO cache time to settle so the next
+    // batch doesn't try to spend a UTXO consumed by the tx we just confirmed.
+    // Without this, fast confirmations (<30s) can cause a ConwayMempoolFailure
+    // "All inputs are spent" on the next submission.
+    if (cycle < N_BATCHES) {
+      const settleMs = 60_000;
+      console.log(`  [..] Waiting ${settleMs / 1000}s for wallet UTXO settle before next cycle...\n`);
+      await new Promise((resolve) => setTimeout(resolve, settleMs));
+    }
   }
 
   // ── Aggregate checks ──
@@ -292,13 +308,31 @@ async function main() {
 main().catch(async (err) => {
   console.error("\n=== E2E Pipeline FAIL ===");
   console.error(err.response?.data || err.message);
-  // Best-effort cleanup
+  // Best-effort cleanup — Supabase's PostgrestFilterBuilder is thenable but not
+  // a real Promise, so `.catch()` on the builder is undefined. Wrap in try.
   const prefix = RUN_ID;
-  const { data: rows } = await supabase.from("readings").select("household_id")
-    .like("household_id", `${prefix}%`).limit(100).catch(() => ({ data: [] }));
-  const hhs = [...new Set((rows || []).map(r => r.household_id))];
-  for (const hh of hhs) {
-    await supabase.from("readings").delete().eq("household_id", hh).catch(() => {});
+  try {
+    const { data: rows } = await supabase
+      .from("readings")
+      .select("household_id, merkle_root")
+      .like("household_id", `${prefix}%`)
+      .limit(500);
+    const hhs = [...new Set((rows || []).map((r) => r.household_id))];
+    const roots = [...new Set((rows || []).map((r) => r.merkle_root).filter(Boolean))];
+    for (const hh of hhs) {
+      try {
+        await supabase.from("readings").delete().eq("household_id", hh);
+      } catch (_) {}
+    }
+    if (roots.length) {
+      try {
+        await supabase.from("blockchain_batches").delete().in("merkle_root", roots);
+      } catch (_) {}
+    }
+    console.error(`Cleanup: removed ${hhs.length} household(s) and ${roots.length} batch row(s) for ${prefix}.`);
+  } catch (cleanupErr) {
+    console.error(`Cleanup itself failed: ${cleanupErr.message}`);
+    console.error(`Run RUN_ID=${prefix} node tests/_cleanup-failed-run.js manually.`);
   }
   process.exit(1);
 });
