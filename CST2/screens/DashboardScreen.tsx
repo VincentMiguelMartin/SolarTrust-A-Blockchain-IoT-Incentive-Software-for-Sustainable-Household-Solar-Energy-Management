@@ -646,16 +646,6 @@ useEffect(() => {
                 <MaterialIcons name="info-outline" size={22} color="#32702f" />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.addPlantButton}
-                activeOpacity={0.85}
-                onPress={() => {
-                  setShowPlantDropdown(false);
-                  setShowAddPlantForm(true);
-                }}
-              >
-                <MaterialIcons name="add" size={22} color="#ffffff" />
-              </TouchableOpacity>
             </View>
 
             {showPlantDropdown ? (
