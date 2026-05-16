@@ -121,6 +121,8 @@ Alert.alert(
 
 setPurchaseStatus("success");
 
+await loadPoints();
+
     } catch (e) {
       Alert.alert(
         "Purchase failed",

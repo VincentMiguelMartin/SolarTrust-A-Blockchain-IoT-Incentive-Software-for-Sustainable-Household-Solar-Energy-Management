@@ -114,6 +114,7 @@ router.get("/:householdId", requireBearerUser, async (req, res) => {
       gameRecentRes,
       purchasesAllRes,
       purchasesRecentRes,
+      redemptionsRes,
     ] = await Promise.all([
       supabase
         .from("rewards")
@@ -145,6 +146,12 @@ router.get("/:householdId", requireBearerUser, async (req, res) => {
         .eq("household_id", householdId)
         .order("purchased_at", { ascending: false })
         .limit(20),
+      supabase
+        .from("reward_redemptions")
+        .select("id, reward_name, points_used, status, created_at")
+        .eq("plant_id", householdId)
+        .neq("status", "rejected")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (energyAllRes.error) {
@@ -165,6 +172,9 @@ router.get("/:householdId", requireBearerUser, async (req, res) => {
     if (purchasesRecentRes.error) {
       return res.status(500).json({ error: purchasesRecentRes.error.message });
     }
+    if (redemptionsRes.error) {
+      return res.status(500).json({ error: redemptionsRes.error.message });
+    }
 
     const energyTotal = (energyAllRes.data || []).reduce(
       (s, r) => s + (Number(r.reward_points) || 0),
@@ -178,7 +188,12 @@ router.get("/:householdId", requireBearerUser, async (req, res) => {
       (s, r) => s + (Number(r.cost) || 0),
       0
     );
-    const totalPoints = energyTotal + gameTotal - purchasesTotal;
+    const redemptionsTotal = (redemptionsRes.data || []).reduce(
+      (s, r) => s + (Number(r.points_used) || 0),
+      0
+    );
+    const totalPoints =
+      energyTotal + gameTotal - purchasesTotal - redemptionsTotal;
 
     const energyHistory = (energyRecentRes.data || []).map((r) => ({
       id: r.id,
@@ -208,7 +223,22 @@ router.get("/:householdId", requireBearerUser, async (req, res) => {
       computed_at: r.purchased_at,
     }));
 
-    const history = [...energyHistory, ...gameHistory, ...purchaseHistory]
+    const redemptionHistory = (redemptionsRes.data || []).map((r) => ({
+      id: r.id,
+      source: "redemption",
+      batch_id: null,
+      item_name: r.reward_name,
+      status: r.status,
+      reward_points: -(Number(r.points_used) || 0),
+      computed_at: r.created_at,
+    }));
+
+    const history = [
+      ...energyHistory,
+      ...gameHistory,
+      ...purchaseHistory,
+      ...redemptionHistory,
+    ]
       .sort((a, b) => {
         const ta = a.computed_at ? Date.parse(a.computed_at) : 0;
         const tb = b.computed_at ? Date.parse(b.computed_at) : 0;
@@ -232,7 +262,7 @@ const STORE_ITEMS = {
 };
 
 async function computeAvailablePoints(householdId) {
-  const [energyRes, gameRes, purchasesRes] = await Promise.all([
+  const [energyRes, gameRes, purchasesRes, redemptionsRes] = await Promise.all([
     supabase
       .from("rewards")
       .select("reward_points")
@@ -245,11 +275,17 @@ async function computeAvailablePoints(householdId) {
       .from("store_purchases")
       .select("cost")
       .eq("household_id", householdId),
+    supabase
+      .from("reward_redemptions")
+      .select("points_used")
+      .eq("plant_id", householdId)
+      .neq("status", "rejected"),
   ]);
 
   if (energyRes.error) throw new Error(energyRes.error.message);
   if (gameRes.error) throw new Error(gameRes.error.message);
   if (purchasesRes.error) throw new Error(purchasesRes.error.message);
+  if (redemptionsRes.error) throw new Error(redemptionsRes.error.message);
 
   const energy = (energyRes.data || []).reduce(
     (s, r) => s + (Number(r.reward_points) || 0),
@@ -263,8 +299,12 @@ async function computeAvailablePoints(householdId) {
     (s, r) => s + (Number(r.cost) || 0),
     0
   );
+  const redeemed = (redemptionsRes.data || []).reduce(
+    (s, r) => s + (Number(r.points_used) || 0),
+    0
+  );
 
-  return energy + game - spent;
+  return energy + game - spent - redeemed;
 }
 
 // POST /api/rewards/purchase — redeem a store item with the user's points.
