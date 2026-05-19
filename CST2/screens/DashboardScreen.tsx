@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -219,6 +220,7 @@ export default function DashboardScreen({ navigation }: Props) {
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [showAddPlantForm, setShowAddPlantForm] = useState(false);
   const [newPlantId, setNewPlantId] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const selectedPlant =
     adminPlants.find((plant) => plant.id === selectedPlantId) ??
     adminPlants[0] ?? { id: "", name: "No plant selected" };
@@ -378,6 +380,14 @@ useEffect(() => {
   fetchPendingRequests();
 }, []);
 
+const onRefresh = async () => {
+  setRefreshing(true);
+
+  await fetchPendingRequests();
+
+  setRefreshing(false);
+};
+
   const handleAddPlant = async () => {
     const plantId = newPlantId.trim().toUpperCase();
 
@@ -467,9 +477,17 @@ useEffect(() => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+  contentContainerStyle={styles.scrollContent}
+  showsVerticalScrollIndicator={false}
+  refreshControl={
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      colors={["#32702f"]}
+      tintColor="#32702f"
+    />
+  }
+>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => navigation.navigate("Menu")}>
             <MaterialIcons name="menu" size={26} color="black" />
