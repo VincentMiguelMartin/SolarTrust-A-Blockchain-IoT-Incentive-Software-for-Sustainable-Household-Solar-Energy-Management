@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -152,6 +153,7 @@ export default function UserDashboardScreen({ navigation }: Props) {
   const [showAddPlantForm, setShowAddPlantForm] = useState(false);
   const [newPlantId, setNewPlantId] = useState("");
   const [pendingReward, setPendingReward] = useState<any | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const hasPlant = Boolean(selectedPlantId.trim() && userPlant.id);
 
   const loadAllowedPlant = async (
@@ -304,6 +306,14 @@ export default function UserDashboardScreen({ navigation }: Props) {
   fetchPendingReward();
 }, []);
 
+const onRefresh = async () => {
+  setRefreshing(true);
+
+  await fetchPendingReward();
+
+  setRefreshing(false);
+};
+
   useEffect(() => {
     if (!hasPlant) {
       setReports(normalReports);
@@ -334,9 +344,17 @@ export default function UserDashboardScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+  contentContainerStyle={styles.scrollContent}
+  showsVerticalScrollIndicator={false}
+  refreshControl={
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      colors={["#32702f"]}
+      tintColor="#32702f"
+    />
+  }
+>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => navigation.navigate("Menu")}>
             <MaterialIcons name="menu" size={26} color="black" />
@@ -425,7 +443,7 @@ export default function UserDashboardScreen({ navigation }: Props) {
         <Text style={styles.indicatorNote}>Please wait 15 minutes for indicator</Text>
 
         <Text style={styles.details}>Click the Graph for Statistics Tab</Text>
-        
+
         {pendingReward && (
   <View style={styles.pendingCard}>
     <View style={styles.pendingHeader}>
