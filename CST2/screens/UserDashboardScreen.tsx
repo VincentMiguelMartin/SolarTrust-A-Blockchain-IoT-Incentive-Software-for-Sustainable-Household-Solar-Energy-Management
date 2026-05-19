@@ -151,6 +151,7 @@ export default function UserDashboardScreen({ navigation }: Props) {
   const [userPlant, setUserPlant] = useState<UserPlant>(emptyUserPlant);
   const [showAddPlantForm, setShowAddPlantForm] = useState(false);
   const [newPlantId, setNewPlantId] = useState("");
+  const [pendingReward, setPendingReward] = useState<any | null>(null);
   const hasPlant = Boolean(selectedPlantId.trim() && userPlant.id);
 
   const loadAllowedPlant = async (
@@ -278,6 +279,31 @@ export default function UserDashboardScreen({ navigation }: Props) {
     setShowAddPlantForm(false);
   };
 
+  const fetchPendingReward = async () => {
+  const { data: userData } = await supabase.auth.getUser();
+
+  const user = userData.user;
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("reward_redemptions")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!error) {
+    setPendingReward(data);
+  }
+};
+
+  useEffect(() => {
+  fetchPendingReward();
+}, []);
+
   useEffect(() => {
     if (!hasPlant) {
       setReports(normalReports);
@@ -399,6 +425,30 @@ export default function UserDashboardScreen({ navigation }: Props) {
         <Text style={styles.indicatorNote}>Please wait 15 minutes for indicator</Text>
 
         <Text style={styles.details}>Click the Graph for Statistics Tab</Text>
+        
+        {pendingReward && (
+  <View style={styles.pendingCard}>
+    <View style={styles.pendingHeader}>
+      <MaterialIcons
+        name="hourglass-top"
+        size={22}
+        color="#f5a623"
+      />
+
+      <Text style={styles.pendingTitle}>
+        Cleaning Request Pending
+      </Text>
+    </View>
+
+    <Text style={styles.pendingText}>
+      Your free cleaning request is currently being reviewed by the admins.
+    </Text>
+
+    <Text style={styles.pendingReference}>
+      Request ID: {pendingReward.id.slice(0, 8).toUpperCase()}
+    </Text>
+  </View>
+)}
 
         <View style={styles.plantSelector}>
 <View style={styles.plantSelectorActions}>
@@ -875,4 +925,40 @@ plantSelectValue: {
   fontSize: 16,
   fontWeight: "800",
 },
+
+pendingCard: {
+  backgroundColor: "#fff8e8",
+  borderRadius: 12,
+  padding: 14,
+  marginBottom: 18,
+  borderLeftWidth: 5,
+  borderLeftColor: "#f5a623",
+},
+
+pendingHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 8,
+},
+
+pendingTitle: {
+  color: "#d68910",
+  fontSize: 16,
+  fontWeight: "700",
+  marginLeft: 8,
+},
+
+pendingText: {
+  color: "#555",
+  fontSize: 13,
+  lineHeight: 20,
+},
+
+pendingReference: {
+  color: "#d68910",
+  fontSize: 12,
+  fontWeight: "700",
+  marginTop: 10,
+},
+
 });
