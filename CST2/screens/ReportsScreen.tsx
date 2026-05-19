@@ -166,10 +166,17 @@ export default function ReportsScreen() {
       setError("");
       setHasSearched(true);
 
+      // Send the picked days as local start/end-of-day instants so the
+      // backend window matches the user's calendar, not UTC midnight.
+      const fromStart = new Date(from);
+      fromStart.setHours(0, 0, 0, 0);
+      const toEnd = new Date(to);
+      toEnd.setHours(23, 59, 59, 999);
+
       const data = await getReadingHistory(
         plantId,
-        toDateInputValue(from),
-        toDateInputValue(to)
+        fromStart.toISOString(),
+        toEnd.toISOString()
       );
 
       setRecords(data?.records ?? []);

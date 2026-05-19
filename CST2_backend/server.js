@@ -585,8 +585,15 @@ app.get("/readings/history/:plantId", async (req, res) => {
       });
     }
 
-    const fromDate = new Date(`${from}T00:00:00.000Z`);
-    const toDate = new Date(`${to}T23:59:59.999Z`);
+    // The app sends full ISO instants for the client's local day boundaries.
+    // Fall back to UTC day bounds for bare YYYY-MM-DD callers (tests/tools).
+    const isDateOnly = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s));
+    const fromDate = isDateOnly(from)
+      ? new Date(`${from}T00:00:00.000Z`)
+      : new Date(from);
+    const toDate = isDateOnly(to)
+      ? new Date(`${to}T23:59:59.999Z`)
+      : new Date(to);
 
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
       return res.status(400).json({ error: "Invalid from/to date" });
