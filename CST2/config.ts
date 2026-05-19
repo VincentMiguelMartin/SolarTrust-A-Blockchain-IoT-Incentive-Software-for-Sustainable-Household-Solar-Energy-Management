@@ -1,5 +1,0 @@
-export const API_BASE_URL = (
-  process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.50.235:3000"
-).replace(/\/+$/, "");
-
-// CHANGE THIS TO IPV4 ADDRESS OF YOUR MACHINE IF YOU ARE TESTING ON A REAL DEVICE
