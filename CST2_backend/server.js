@@ -13,6 +13,7 @@ const {
   getWalletUtxos,
 } = require("./services/blockfrostService");
 const { recordEnergyOnChain, runBatch } = require("./services/blockchainRecordService");
+const { runIngestCycle } = require("./services/ingestService");
 const { createClient } = require("@supabase/supabase-js");
 const { detectAnomaly } = require("./middleware/validateEnergy");
 const rewardRoutes = require("./routes/rewardRoutes");
@@ -498,6 +499,24 @@ app.post("/readings", async (req, res) => {
     res.json({ reading: data });
   } catch (e) {
     res.status(500).json({ error: String(e) });
+  }
+});
+
+// POST /ingest — run one full ingest cycle on demand (Taneko fetch →
+// anomaly screen → record on-chain). Same logic the 15-min cron runs;
+// exposed so an external scheduler (or a live demo) can trigger it
+// without depending on Render's free-tier instance staying awake.
+app.post("/ingest", async (req, res) => {
+  try {
+    const plantId =
+      String(req.body?.plantId || "").trim() ||
+      process.env.TANEKO_PLANT_ID ||
+      "TTC60011";
+
+    const summary = await runIngestCycle(plantId);
+    res.json({ success: true, ...summary });
+  } catch (e) {
+    res.status(500).json({ success: false, error: String(e) });
   }
 });
 
