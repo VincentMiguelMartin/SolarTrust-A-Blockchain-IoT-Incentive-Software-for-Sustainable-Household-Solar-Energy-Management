@@ -10,12 +10,52 @@ let _lucid = null;
 async function getLucid() {
   if (_lucid) return _lucid;
 
-  const { Lucid, Blockfrost } = await import("lucid-cardano");
-
-  _lucid = await Lucid.new(
-    new Blockfrost(BLOCKFROST_URL, process.env.BLOCKFROST_PROJECT_ID),
-    "Preprod"
+  const { Lucid, Blockfrost, PROTOCOL_PARAMETERS_DEFAULT } = await import(
+    "lucid-cardano"
   );
+
+  const provider = new Blockfrost(
+    BLOCKFROST_URL,
+    process.env.BLOCKFROST_PROJECT_ID
+  );
+
+  // ── Workaround for lucid-cardano@0.10.11 (final, abandoned release) ──────
+  // After a Cardano hard fork, Blockfrost's /epochs/latest/parameters returns
+  // more Plutus cost-model entries than the CML bundled in this Lucid can
+  // index. Lucid's createCostModels() does costModel.set(index, …) for every
+  // entry, so the extra ones throw "CostModel operation N out of bounds" at
+  // Lucid.new() — before any tx is even built.
+  //
+  // Our batch tx is metadata-only (label 674, no Plutus scripts, no
+  // redeemers), so cost-model VALUES never affect tx validity or the hash.
+  // We trim each array to the exact length Lucid's own shipped defaults use
+  // (PlutusV1=166, PlutusV2=175) — derived here, not hard-coded, so it stays
+  // correct if the bundled Lucid ever changes. Proper long-term fix is
+  // migrating to @lucid-evolution/lucid.
+  const limit = {
+    PlutusV1: Object.keys(PROTOCOL_PARAMETERS_DEFAULT.costModels.PlutusV1)
+      .length,
+    PlutusV2: Object.keys(PROTOCOL_PARAMETERS_DEFAULT.costModels.PlutusV2)
+      .length,
+  };
+  const trim = (model, max) =>
+    model ? Object.fromEntries(Object.entries(model).slice(0, max)) : model;
+
+  const originalGetProtocolParameters =
+    provider.getProtocolParameters.bind(provider);
+  provider.getProtocolParameters = async () => {
+    const pp = await originalGetProtocolParameters();
+    if (pp && pp.costModels) {
+      pp.costModels = {
+        ...pp.costModels,
+        PlutusV1: trim(pp.costModels.PlutusV1, limit.PlutusV1),
+        PlutusV2: trim(pp.costModels.PlutusV2, limit.PlutusV2),
+      };
+    }
+    return pp;
+  };
+
+  _lucid = await Lucid.new(provider, "Preprod");
 
   if (!process.env.WALLET_SEED_PHRASE) {
     throw new Error("WALLET_SEED_PHRASE is not set in environment variables");
@@ -105,4 +145,4 @@ async function generateWallet() {
   return { seed, address };
 }
 
-module.exports = { submitBatch, generateWallet };
+module.exports = { submitBatch, generateWallet, getLucid };
